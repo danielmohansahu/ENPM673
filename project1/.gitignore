@@ -1,1 +1,2 @@
-Data/
+# ignore image / video files
+*.png
