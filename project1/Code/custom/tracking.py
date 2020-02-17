@@ -21,47 +21,55 @@ def to_homogeneous(points):
 
 def replace_section(src, replacement, contour):
     """Replace the contour in src with the same contour in dst.
-
     Images must be the same size.
     """
-    # if src.shape != replacement.shape:
-    #     raise RuntimeError("Unable to process images of different shapes. {} vs {}".format(src.shape, replacement.shape))
+    if src.shape != replacement.shape:
+        raise RuntimeError("Unable to process images of different shapes. {} vs {}".format(src.shape, replacement.shape))
 
+    # initialize result image
     result = src.copy()
 
-    for y_pix in range(src.shape[0]):
-        bounds = get_contour_x_bounds(y_pix,contour)
-        print(bounds)
-        result[:,bounds[0]:bounds[1]] = replacement[:,bounds[0]:bounds[1]]
+    # initialize some loop variables
+    size_y, size_x = src.shape[:-1]
+    X_c = [c[0][0] for c in contour]    # contour X value list
+    Y_c = [c[0][1] for c in contour]    # contour Y value list
+
+    for y_pix in range(size_y):
+        # find out which columns of the given row should be replaced, and replace.
+        bounds = get_contour_x_bounds(y_pix,X_c,Y_c)
+        if bounds:
+            result[y_pix,bounds[0]:bounds[1]] = replacement[y_pix,bounds[0]:bounds[1]]
 
     return result
 
-def get_contour_x_bounds(y_val, contour):
+def get_contour_x_bounds(y_val, X, Y):
     """Calculate the minimum and maximum X that are still within
     the given contour (X,Y) for the given Y value.
-    """
-    X = [c[0][0] for c in contour]
-    Y = [c[0][1] for c in contour]
 
+    @TODO handle edge cases (on a corner, on a line) better
+    """
     # return empty range if we're above or below the contour
     if y_val < min(Y) or y_val > max(Y):
-        return (0,0)
+        return None
     
-    # edge cases (on a corner, on a line)
-
     # general case; find the two lines our row intersects
     Y_closed = Y + [Y[0]] # close for easier looping
     X_closed = X + [X[0]] # close for easier looping
 
+    # construct the lines that intersect the row we're working on
     lines = []
     for i in range(len(Y)):
-        bounds = [Y_closed[i], Y_closed[i+1]]
-        bounds.sort()
-        if bounds[0] < y_val < bounds[1]:
-            m = (Y_closed[i+1]-Y_closed[i])/(X_closed[i+1]/X_closed[i])
-            b = Y_closed[i] - X_closed[i]*m
+        y,yn = Y_closed[i],Y_closed[i+1]
+        x,xn = X_closed[i],X_closed[i+1]
+        if min(y,yn) <= y_val <= max(y,yn):
+            m = (yn-y)/(xn-x)
+            b = y-m*x
             lines.append([m,b])
+
+    # the section (columns) that we want to replace are the intersection
+    #   points of our intersecting lines:
     bounds = [int((y_val-b)/m) for m,b in lines]
+    # sort for convenience:
     bounds.sort()
     return bounds
 
