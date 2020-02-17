@@ -1,0 +1,10 @@
+# large outstanding issues:
+ - current AR detection doesn't determine tag orientation
+    - proposed soln: align detected contour before returning (based on shape matching)
+ - current AR detection only gets tags from 1 video (those without inner black squares)
+    - proposed soln: don't just check smallest contour; check all of them for candidates
+ - current warp_image function is way too slow
+ - current warp_image function has messy / lost data
+ 
+
+ - no tracking (part 2b) implemented yet
