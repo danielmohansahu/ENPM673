@@ -19,11 +19,11 @@ def warp_image(frame, H, output_shape):
 
     # homographize and normalize:
     homography = H@dst_hom
-    x_f = homography[0,:]/homography[2,:]
-    y_f = homography[1,:]/homography[2,:]
+    x_f = np.array(homography[0,:]/homography[2,:],dtype=np.int)
+    y_f = np.array(homography[1,:]/homography[2,:],dtype=np.int)
 
     for i in range(len(x_f)):
-        dst[int(y_f[i]), int(x_f[i]),:] = frame[dst_hom[1,i],dst_hom[0,i],:]
+        dst[y_f[i], x_f[i],:] = frame[dst_hom[1,i],dst_hom[0,i],:]
 
     return dst
 
