@@ -4,16 +4,27 @@
 import numpy as np
 import cv2
 
-def warp_image(frame, homography, output_shape):
+def warp_image(frame, H, output_shape):
     """Warp the given image with the given homography matrix.
     """
     dst = np.zeros(output_shape)
 
-    for x in range(frame.shape[0]):
-        for y in range(frame.shape[1]):
-            x_f,y_f,s = homography@[x,y,1]
-            dst[int(y_f/s),int(x_f/s),:] = frame[y,x,:]
-    
+    # construct homogeneous form of indices
+    size_x, size_y = frame.shape[:-1]
+    dst_hom = np.array([
+        np.array([[i]*size_x for i in range(size_y)]).flatten(),
+        [*range(size_x)]*size_y,
+        [1]*size_x*size_y
+        ])
+
+    # homographize and normalize:
+    homography = H@dst_hom
+    x_f = homography[0,:]/homography[2,:]
+    y_f = homography[1,:]/homography[2,:]
+
+    for i in range(len(x_f)):
+        dst[int(y_f[i]), int(x_f[i]),:] = frame[dst_hom[1,i],dst_hom[0,i],:]
+
     return dst
 
 def get_corners(image):
