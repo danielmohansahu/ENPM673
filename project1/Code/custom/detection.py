@@ -71,6 +71,10 @@ class ARDetector:
     #------------------ PRIVATE MEMBER FUNCTIONS --------------#
 
     def _find_tags(self, frame):
+        #@TODO plug in template contour, use contour matching to get tag. 
+        #@TODO use cv2.fitEllipse to get angle (must be a better way)
+        #@TODO get AR ID (via location of inner contour??)  
+        
         # get contours, hierarchy
         contours, hierarchy = cv2.findContours(frame.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
