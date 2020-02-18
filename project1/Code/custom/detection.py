@@ -83,8 +83,8 @@ class ARDetector:
         #   we're looking for a child/parent pair that matches our internal
         #   shape and outside border
 
-        # first find all bottommost children
-        is_child = lambda h: h[2] == -1 and h[3] != -1
+        # first find all children
+        is_child = lambda h: h[3] != -1
         children = [idx for idx, val in enumerate(hierarchy[0]) if is_child(val)]
 
         # sanity check that the number of points of each child is 

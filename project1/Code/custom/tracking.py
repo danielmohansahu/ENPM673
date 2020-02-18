@@ -69,6 +69,8 @@ def get_contour_x_bounds(y_val, X, Y):
     X_closed = X + [X[0]] # close for easier looping
 
     # construct the lines that intersect the row we're working on
+    # @TODO construct the lines before calling this (faster)
+
     lines = []
     for i in range(len(Y)):
         y,yn = Y_closed[i],Y_closed[i+1]
@@ -78,9 +80,17 @@ def get_contour_x_bounds(y_val, X, Y):
             b = y-m*x
             lines.append([m,b])
 
+            # edge case (@TODO handle this better)
+            if m == 0:
+                bounds = [x,xn]
+                bounds.sort
+                return bounds
+
     # the section (columns) that we want to replace are the intersection
     #   points of our intersecting lines:
-    bounds = [int((y_val-b)/m) for m,b in lines]
+    bounds = []
+    for m,b in lines:
+        bounds.append(int((y_val-b)/m))
     # sort for convenience:
     bounds.sort()
     return bounds
