@@ -1,6 +1,7 @@
 """Custom AR detection.
 """
 import cv2
+from .utils import Timer
 
 # global variables (to be parameterized)
 FIDUCIAL_CORNERS = 11
@@ -21,35 +22,44 @@ class ARDetector:
         Returns detected AR points and orientation.
         """
         # convert to grayscale
-        self._frame = self.grayscale(self._frame)
+        with Timer("\tgrayscale",self.__debug):
+            self._frame = self.grayscale(self._frame)
+        if self.__debug:
+            self.plot(self._frame, "gray")
+        
         # filter
-        self._frame = self.filter(self._frame)
+        with Timer("\tfilter",self.__debug):
+            self._frame = self.filter(self._frame)
+        if self.__debug:
+            self.plot(self._frame, "filtered")
+        
         # threshold
-        self._frame = self.threshold(self._frame)
+        with Timer("\tthreshold",self.__debug):
+            self._frame = self.threshold(self._frame)
+        if self.__debug:
+            self.plot(self._frame, "threshold")
+        
         # perform detection
-        return self._find_tags(self._frame)
+        with Timer("\tdetect",self.__debug):
+            detects = self._find_tags(self._frame)
+
+        return detects
 
     #------------------ STATIC API FUNCTIONS ------------------#
 
-    @classmethod
-    def grayscale(cls, frame):
+    @staticmethod
+    def grayscale(frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        if cls.__debug:
-            cls.plot(gray, "gray")
         return gray
 
-    @classmethod
-    def filter(cls, frame):
+    @staticmethod
+    def filter(frame):
         filtered = cv2.medianBlur(frame, 1)
-        if cls.__debug:
-            cls.plot(filtered, "filtered")
         return filtered
 
-    @classmethod
-    def threshold(cls, frame):
+    @staticmethod
+    def threshold(frame):
         ret,thresh = cv2.threshold(frame,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        if cls.__debug:
-            cls.plot(thresh, "threshold")
         return thresh
 
     @classmethod
