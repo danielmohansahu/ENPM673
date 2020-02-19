@@ -3,17 +3,24 @@
 import cv2
 from .utils import Timer
 
-# global variables (to be parameterized)
-FIDUCIAL_CORNERS = 11
+# global variables (should be parameterized
+MIN_SIDES_MATCH=7
+MAX_SHAPE_MATCH=0.1
 
 class ARDetector:
     """Object oriented approach to filtering and detecting AR
     tags in an individual image.
     """
     __debug = False
-    def __init__(self, frame):
+    def __init__(self, frame, reference_tag):
         self._original = frame.copy()
         self._frame = frame.copy()
+
+        # extract contours from the given reference image
+        cnts, hier = cv2.findContours(reference_tag, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        if len(cnts) != 1:
+            raise RuntimeError("Unexpected number of contours extracted from given reference tag image.")
+        self._reference_contour = cnts[0]
 
     def detect(self):
         """Top level API for this class.
@@ -92,35 +99,31 @@ class ARDetector:
             img = self._original.copy()
             cv2.drawContours(img,contours,-1,(0,255,0),3)
             self.plot(img, "all contours")
-       
-        # traverse contours
-        #   we're looking for a child/parent pair that matches our internal
-        #   shape and outside border
+      
+        # get all contour matches (based on approxPolyDP points and matchShapes):
+        tag_idxs = []
+        for i,cnt in enumerate(contours):
+            # get rough number of sides:
+            sides = len(cv2.approxPolyDP(cnt, 2, True))
+            # get comparison to template
+            shape_match = cv2.matchShapes(self._reference_contour, cnt, cv2.CONTOURS_MATCH_I1, 0)
+            if sides > MIN_SIDES_MATCH and shape_match < MAX_SHAPE_MATCH:
+                # consider this a tag
+                tag_idxs.append(i)
 
-        # first find all children
-        is_child = lambda h: h[3] != -1
-        children = [idx for idx, val in enumerate(hierarchy[0]) if is_child(val)]
-
-        # sanity check that the number of points of each child is 
-        #   more than 4 (our tag is a complex shape)
-        # @TODO actually look for the number of vertices we 
-        #   expect from the individual tag?
+        # return the rectangular approximation of the parent of each detected tag
+        parents = [hierarchy[0][i][3] for i in tag_idxs]
+        parents = [cv2.approxPolyDP(contours[p],2,True) for p in parents]
         
-        children = [child for child in children if len(cv2.approxPolyDP(contours[child], 2, True)) > 4]
-
         # filter parents (note that this is conservative, we'll miss frames
-        parents = [hierarchy[0][child][3] for child in children]
-        parents = [parent for parent in parents if len(cv2.approxPolyDP(contours[parent],2,True)) == 4]
+        parents = [p for p in parents if len(p)==4]
 
-        # return the contours corresponding to the direct parents 
-        #   of all our matching children (these should all be 
-        #   precise rectangles)
-        # @TODO actually calculate orientation!
-        results = [(cv2.approxPolyDP(contours[parent],2,True),1) for parent in parents]
+        # append IDs (@TODO actually calculate this)
+        results = [(p,1) for p in parents]
 
         if self.__debug:
             img = self._original.copy()
-            cv2.drawContours(img,[contours[p] for p in parents],-1,(0,255,0),3)
+            cv2.drawContours(img, parents,-1,(0,255,0),3)
             self.plot(img, "AR contours")
 
         return results
