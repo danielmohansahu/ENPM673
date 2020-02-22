@@ -25,6 +25,16 @@ def vidshow(filepath):
 
     cv2.destroyAllWindows()
 
+class VidWriter:
+    def __init__(self, filename, fps, fourcc, size):
+        self._writer = cv2.VideoWriter(filename, fps, fourcc, size)
+    
+    def __enter__(self):
+        return self._writer
+
+    def __exit__(self, type, value, traceback):
+        self._writer.release()
+
 class VidGenerator(Generator):
     """Return a generator for the given video file.
 
@@ -41,6 +51,14 @@ class VidGenerator(Generator):
 
         # open the video file
         self._video = cv2.VideoCapture(self.path)
+
+        # get some metadata
+        self.fourcc = int(self._video.get(cv2.CAP_PROP_FOURCC))
+        self.fps = int(self._video.get(cv2.CAP_PROP_FPS))
+        self.size = (
+            int(self._video.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(self._video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        )
 
     def send(self, ignored):
         ret, frame = self._video.read()

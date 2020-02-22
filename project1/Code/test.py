@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import os
 import time
 import code
 import argparse
@@ -17,7 +17,7 @@ TEMPLATE_FILE = "../Data/reference_images/Lena.png"
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", type=str, default=TEST_FILE, help="Input video containing fiducial information.")
-    parser.add_argument("--debug", type=bool, default=False, help="Plot processed images (and timing)")
+    parser.add_argument("--verbose", type=int, default=1, help="Plot processed images (and timing)")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -30,16 +30,33 @@ if __name__ == "__main__":
 
     # initialize tracker and set class debugging
     tracker = ARTracker(template)
-    ARDetector.debug(True)
-    ARTracker.debug(True)
+    ARDetector.debug(args.verbose > 1)
+    ARTracker.debug(args.verbose > 1)
 
+    # initialize our video IO
+    vidgen = file_utils.VidGenerator(args.video)
+    output_file = "processed_" + os.path.basename(args.video)
+    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'DIVX'), vidgen.fps, vidgen.size)
+    
     # process every frame in the given video
-    for ret,frame in file_utils.VidGenerator(args.video):
-        st = time.time()
-        detector = ARDetector(frame, reference_tag)
-        detections = detector.detect()
+    process_start = time.time()
+    frame_count = 0
+    with video_writer as writer:
+        for ret,frame in vidgen:
+            # metadata
+            frame_start = time.time()
+            frame_count += 1
 
-        for corners, orientation in detections:
-            tracker.track(frame, corners) 
+            detector = ARDetector(frame, reference_tag)
+            detections = detector.detect()
+
+            for corners, orientation in detections:
+                frame = tracker.track(frame, corners)
+
+            writer.write(frame)
+            if args.verbose:
+                ctime = time.time()
+                print("Processed frame #{} in {:3f}s ({:3f}s total".format(frame_count, ctime-frame_start, ctime-process_start))
+
 
     code.interact(local=locals())
