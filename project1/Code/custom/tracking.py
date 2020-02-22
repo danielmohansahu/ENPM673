@@ -8,7 +8,7 @@ from .utils import Timer, get_corners
 class ARTracker:
     """Class containing functions for AR tracking / manipulation.
     """
-    __debug = False
+    __verbosity = 0
 
     def __init__(self, template):
         # template image to use in AR replacement
@@ -17,19 +17,19 @@ class ARTracker:
    
     def track(self, frame, ar_contour):
         # compute homography
-        with Timer("\thomography", self.__debug):
+        with Timer("\thomography", self.__verbosity):
             H = self.get_homography(ar_contour, self._template_corners)
         
         # warp template image
-        with Timer("\twarping", self.__debug):
+        with Timer("\twarping", self.__verbosity):
             warped = self.warp_image(self._template, H, frame.shape)
-        if self.__debug:
+        if self.__verbosity > 2:
             self.plot(warped, "warped")
 
         # replace AR tag with warped image
-        with Timer("\treplace", self.__debug):
+        with Timer("\treplace", self.__verbosity):
             replaced = self.replace_section(frame, warped, ar_contour)
-        if self.__debug:
+        if self.__verbosity > 2:
             self.plot(replaced, "replaced")
 
         return replaced
@@ -94,12 +94,12 @@ class ARTracker:
         key = cv2.waitKey(0)
         if key == ord('q'):
             # stop debugging on 'q'
-            cls.debug(False)
+            cls.debug(0)
         cv2.destroyAllWindows()
 
     @classmethod
-    def debug(cls, on_or_off):
-        cls.__debug = on_or_off
+    def debug(cls, verbosity):
+        cls.__verbosity = verbosity
 
     def replace_section(self, src, replacement, contour):
         """Replace the contour in src with the same contour in dst.

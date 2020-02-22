@@ -19,13 +19,13 @@ def get_corners(image):
     return corners
 
 class Timer(object):
-    def __init__(self, description, debug=False):
+    def __init__(self, description, verbosity=0):
         self.description = description
-        self.debug = debug
+        self.verbosity = verbosity
     def __enter__(self):
-        if self.debug:
+        if self.verbosity:
             self.start = time.time()
     def __exit__(self, type, value, traceback):
-        if self.debug:
+        if self.verbosity > 1:
             self.end = time.time()
             print(f"{self.description}: {self.end - self.start}")

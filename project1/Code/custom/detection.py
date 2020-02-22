@@ -13,7 +13,7 @@ class ARDetector:
     """Object oriented approach to filtering and detecting AR
     tags in an individual image.
     """
-    __debug = False
+    __verbosity = 0
     def __init__(self, frame, reference_tag):
         self._original = frame.copy()
         self._frame = frame.copy()
@@ -31,25 +31,25 @@ class ARDetector:
         Returns detected AR points and orientation.
         """
         # convert to grayscale
-        with Timer("\tgrayscale",self.__debug):
+        with Timer("\tgrayscale",self.__verbosity):
             self._frame = self.grayscale(self._frame)
-        if self.__debug:
+        if self.__verbosity > 2:
             self.plot(self._frame, "gray")
         
         # filter
-        with Timer("\tfilter",self.__debug):
+        with Timer("\tfilter",self.__verbosity):
             self._frame = self.filter(self._frame)
-        if self.__debug:
+        if self.__verbosity > 2:
             self.plot(self._frame, "filtered")
         
         # threshold
-        with Timer("\tthreshold",self.__debug):
+        with Timer("\tthreshold",self.__verbosity):
             self._frame = self.threshold(self._frame)
-        if self.__debug:
+        if self.__verbosity > 2:
             self.plot(self._frame, "threshold")
         
         # perform detection
-        with Timer("\tdetect",self.__debug):
+        with Timer("\tdetect",self.__verbosity):
             detects = self._find_tags(self._frame)
 
         return detects
@@ -80,12 +80,12 @@ class ARDetector:
         key = cv2.waitKey(0)
         if key == ord('q'):
             # stop debugging on 'q'
-            cls.debug(False)
+            cls.verbosity(0)
         cv2.destroyAllWindows()
 
     @classmethod
-    def debug(cls, on_or_off):
-        cls.__debug = on_or_off
+    def debug(cls, verbosity):
+        cls.__verbosity = verbosity
 
     #------------------ PRIVATE MEMBER FUNCTIONS --------------#
 
@@ -96,7 +96,7 @@ class ARDetector:
         # get contours, hierarchy [next, prev, child, parent]
         contours, hierarchy = cv2.findContours(frame.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
-        if self.__debug:
+        if self.__verbosity > 2:
             img = self._original.copy()
             cv2.drawContours(img,contours,-1,(0,255,0),3)
             self.plot(img, "all contours")
@@ -146,7 +146,7 @@ class ARDetector:
         # results
         results = zip(corners, ids)
 
-        if self.__debug:
+        if self.__verbosity > 2:
             img = self._original.copy()
             cv2.drawContours(img, corners, -1, (0,255,0), 3)
             self.plot(img, "AR contours")

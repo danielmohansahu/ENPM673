@@ -17,7 +17,7 @@ TEMPLATE_FILE = "../Data/reference_images/Lena.png"
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", type=str, default=TEST_FILE, help="Input video containing fiducial information.")
-    parser.add_argument("--verbose", type=int, default=1, help="Set verbosity level (0 is none, 1 is console output, 2 is images).")
+    parser.add_argument("--verbosity", type=int, default=1, help="Set verbosity level (0 is none, 1 is console output, 2 is images).")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -30,8 +30,8 @@ if __name__ == "__main__":
 
     # initialize tracker and set class debugging
     tracker = ARTracker(template)
-    ARDetector.debug(args.verbose > 1)
-    ARTracker.debug(args.verbose > 1)
+    ARDetector.debug(args.verbosity)
+    ARTracker.debug(args.verbosity)
 
     # initialize our video IO
     vidgen = file_utils.VidGenerator(args.video)
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 frame = tracker.track(frame, corners)
 
             writer.write(frame)
-            if args.verbose:
+            if args.verbosity:
                 ctime = time.time()
                 print("Processed frame #{}/{} in {:.3f}s ({:.3f}s total".format(frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
