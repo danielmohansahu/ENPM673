@@ -49,9 +49,19 @@ if __name__ == "__main__":
 
             detector = ARDetector(frame, reference_tag)
             detections, ids = detector.detect()
-
+            
             for corners in detections:
-                frame = tracker.track(frame, corners)
+                frame, homography = tracker.track(frame, corners)
+
+                """TO BRENDA:
+                
+                Here's where I think it makes sense to integrate your stuff.
+
+                `frame` is the frame with the Lena.png superimposed
+                `detections` are all the (oriented) contours detected in the frame
+                `homographies` is a list of calculated homography matrices
+
+                """
 
             writer.write(frame)
             if args.verbosity:

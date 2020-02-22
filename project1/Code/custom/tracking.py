@@ -32,7 +32,7 @@ class ARTracker:
         if self.__verbosity > 2:
             self.plot(replaced, "replaced")
 
-        return replaced
+        return replaced, H
     #------------------ STATIC API FUNCTIONS ------------------#
 
     @staticmethod
