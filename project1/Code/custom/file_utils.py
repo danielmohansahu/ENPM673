@@ -53,6 +53,7 @@ class VidGenerator(Generator):
         self._video = cv2.VideoCapture(self.path)
 
         # get some metadata
+        self.frame_count = int(self._video.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fourcc = int(self._video.get(cv2.CAP_PROP_FOURCC))
         self.fps = int(self._video.get(cv2.CAP_PROP_FPS))
         self.size = (
@@ -71,7 +72,7 @@ class VidGenerator(Generator):
         self._video.release()
         raise StopIteration
 
-def imread(filepath, grayscale=False):
+def imread(filepath, color=cv2.IMREAD_UNCHANGED):
     """Attempt to load a given image file.
 
     This is just a wrapper around cv2 imread, but we actually
@@ -81,10 +82,7 @@ def imread(filepath, grayscale=False):
         raise RuntimeError("Cannot load {}; file does not exist.".format(filepath))
 
     # actually load the file
-    if grayscale:
-        img = cv2.imread(filepath, 0)
-    else:
-        img = cv2.imread(filepath)
+    img = cv2.imread(filepath, color)
 
     if img is None:
         raise RuntimeError("Failed to load {}; is it an image file?".format(filepath))

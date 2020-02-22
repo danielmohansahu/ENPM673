@@ -26,7 +26,7 @@ if __name__ == "__main__":
     
     # get template file (lena) and reference tag file
     template = file_utils.imread(TEMPLATE_FILE)
-    reference_tag = file_utils.imread(AR_FILE, grayscale=True)
+    reference_tag = file_utils.imread(AR_FILE,0)
 
     # initialize tracker and set class debugging
     tracker = ARTracker(template)
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             writer.write(frame)
             if args.verbose:
                 ctime = time.time()
-                print("Processed frame #{} in {:3f}s ({:3f}s total".format(frame_count, ctime-frame_start, ctime-process_start))
+                print("Processed frame #{}/{} in {:.3f}s ({:.3f}s total".format(frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
 
     code.interact(local=locals())
