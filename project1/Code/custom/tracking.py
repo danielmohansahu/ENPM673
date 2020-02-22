@@ -80,10 +80,9 @@ class ARTracker:
         homography = H@dst_hom
         x_f = np.array(homography[0,:]/homography[2,:],dtype=np.int)
         y_f = np.array(homography[1,:]/homography[2,:],dtype=np.int)
-    
-        for i in range(len(x_f)):
-            dst[y_f[i], x_f[i],:] = frame[dst_hom[1,i],dst_hom[0,i],:]
-    
+  
+        # replace destination values with the appropriate source image values
+        dst[y_f,x_f] = frame[dst_hom[1],dst_hom[0]]  
         return dst
     
     @classmethod
