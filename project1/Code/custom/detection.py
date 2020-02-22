@@ -5,7 +5,8 @@ from .utils import Timer
 
 # global variables (should be parameterized
 MIN_SIDES_MATCH=7
-MAX_SHAPE_MATCH=0.1
+MAX_SHAPE_MATCH=0.15
+APPROX_POLY_ERROR=3
 
 class ARDetector:
     """Object oriented approach to filtering and detecting AR
@@ -88,7 +89,6 @@ class ARDetector:
     #------------------ PRIVATE MEMBER FUNCTIONS --------------#
 
     def _find_tags(self, frame):
-        #@TODO plug in template contour, use contour matching to get tag. 
         #@TODO use cv2.fitEllipse to get angle (must be a better way)
         #@TODO get AR ID (via location of inner contour??)  
         
@@ -104,7 +104,7 @@ class ARDetector:
         tag_idxs = []
         for i,cnt in enumerate(contours):
             # get rough number of sides:
-            sides = len(cv2.approxPolyDP(cnt, 2, True))
+            sides = len(cv2.approxPolyDP(cnt, APPROX_POLY_ERROR, True))
             # get comparison to template
             shape_match = cv2.matchShapes(self._reference_contour, cnt, cv2.CONTOURS_MATCH_I1, 0)
             if sides > MIN_SIDES_MATCH and shape_match < MAX_SHAPE_MATCH:
@@ -113,7 +113,7 @@ class ARDetector:
 
         # return the rectangular approximation of the parent of each detected tag
         parents = [hierarchy[0][i][3] for i in tag_idxs]
-        parents = [cv2.approxPolyDP(contours[p],3,True) for p in parents]
+        parents = [cv2.approxPolyDP(contours[p],APPROX_POLY_ERROR,True) for p in parents]
         
         # filter parents (note that this is conservative, we'll miss frames
         parents = [p for p in parents if len(p)==4]
