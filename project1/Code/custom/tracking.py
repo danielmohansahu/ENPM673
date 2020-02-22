@@ -32,6 +32,7 @@ class ARTracker:
         if self.__debug:
             self.plot(replaced, "replaced")
 
+        return replaced
     #------------------ STATIC API FUNCTIONS ------------------#
 
     @staticmethod
@@ -142,25 +143,32 @@ class ARTracker:
         # @TODO construct the lines before calling this (faster)
     
         lines = []
+        bounds = []
         for i in range(len(Y)):
             y,yn = Y_closed[i],Y_closed[i+1]
             x,xn = X_closed[i],X_closed[i+1]
             if min(y,yn) <= y_val <= max(y,yn):
                 m = (yn-y)/(xn-x)
                 b = y-m*x
-                lines.append([m,b])
     
-                # edge case (@TODO handle this better)
+                # edge cases (@TODO handle this better)
                 if m == 0:
+                    # if we encounter a parallel line, just replace that
                     bounds = [x,xn]
-                    bounds.sort
-                    return bounds
+                    break
+                elif np.isinf(m):
+                    # if we encounter a purely vertical line, use that X as one of the bounds
+                    bounds.append(x)
+                else:
+                    lines.append([m,b])
     
         # the section (columns) that we want to replace are the intersection
         #   points of our intersecting lines:
-        bounds = []
         for m,b in lines:
-            bounds.append(int((y_val-b)/m))
+            try:
+                bounds.append(int((y_val-b)/m))
+            except Exception:
+                import pdb;pdb.set_trace()
         # sort for convenience:
         bounds.sort()
         return bounds
