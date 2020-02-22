@@ -1,5 +1,6 @@
 """Custom AR detection.
 """
+import numpy as np
 import cv2
 from .utils import Timer
 
@@ -92,7 +93,7 @@ class ARDetector:
         #@TODO use cv2.fitEllipse to get angle (must be a better way)
         #@TODO get AR ID (via location of inner contour??)  
         
-        # get contours, hierarchy
+        # get contours, hierarchy [next, prev, child, parent]
         contours, hierarchy = cv2.findContours(frame.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
         if self.__debug:
@@ -111,22 +112,77 @@ class ARDetector:
                 # consider this a tag
                 tag_idxs.append(i)
 
-        # return the rectangular approximation of the parent of each detected tag
+        # get the parent index of each detected tag
         parents = [hierarchy[0][i][3] for i in tag_idxs]
-        parents = [cv2.approxPolyDP(contours[p],APPROX_POLY_ERROR,True) for p in parents]
         
-        # filter parents (note that this is conservative, we'll miss frames
-        parents = [p for p in parents if len(p)==4]
+        # determine the orientation of the parent
+        #   the "first" point on our contour should be the closest
+        #   point to the child contour
+        corners = []
+        ids = []
+        for i, parent in enumerate(parents):
+            tag = tag_idxs[i]
 
-        # append IDs (@TODO actually calculate this)
-        results = [(p,1) for p in parents]
+            # simplify parent and child contours
+            parent_contour = cv2.approxPolyDP(contours[parent], 
+                                              APPROX_POLY_ERROR, 
+                                              True)
+            tag_contour = cv2.approxPolyDP(contours[tag], 
+                                           APPROX_POLY_ERROR, 
+                                           True)
+
+            # skip parent contours that aren't roughly square
+            if len(parent_contour) != 4:
+                continue
+
+            # align contours
+            corners.append(self._align_closest_point(tag_contour, parent_contour))
+            
+            # get fiducial ID (based on inner contour)
+            tag_child_idx = hierarchy[0][tag][2]
+            tag_child_contour = None if tag_child_idx==-1 else contours[tag_child_idx]
+            ids.append(self._tag_id(tag_contour, tag_child_contour))
+        
+        # results
+        results = zip(corners, ids)
 
         if self.__debug:
             img = self._original.copy()
-            cv2.drawContours(img, parents,-1,(0,255,0),3)
+            cv2.drawContours(img, corners, -1, (0,255,0), 3)
             self.plot(img, "AR contours")
 
         return results
+
+    def _align_closest_point(self, ref, src, offset=2):
+        """ Orient the given contours.
+
+        This function returns a reordered src such that its first 
+        point is the closest point to ref[0] plus the given offset.
+        """
+        # get the indices of the closest points on ref/src
+        min_dist = np.inf
+        src_idx = -1
+        for i, ref_point in enumerate(ref):
+            for j, src_point in enumerate(src):
+                dist = np.linalg.norm(ref_point-src_point)
+                if dist < min_dist:
+                    src_idx = j
+                    min_dist = dist
+
+        # return a reordered src copy
+        idx = (src_idx + offset) % src.shape[0]
+        result = np.concatenate((src[idx:],src[:idx]))
+        return result
+
+
+    def _tag_id(self, tag_contour, child_countour):
+        """ Extract the ID of the tag.
+
+        Our assumption is that the inner contour represents
+        the least significant bit of the tag ID
+        """
+        return 0
+
 
 
 
