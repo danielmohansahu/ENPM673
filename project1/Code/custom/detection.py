@@ -5,7 +5,7 @@ from .utils import Timer
 
 # global variables (should be parameterized
 MIN_SIDES_MATCH=7
-MAX_SHAPE_MATCH=0.15
+MAX_SHAPE_MATCH=0.2
 APPROX_POLY_ERROR=3
 
 class ARDetector:
