@@ -141,34 +141,31 @@ class ARTracker:
     
         # construct the lines that intersect the row we're working on
         # @TODO construct the lines before calling this (faster)
-    
         lines = []
         bounds = []
         for i in range(len(Y)):
             y,yn = Y_closed[i],Y_closed[i+1]
             x,xn = X_closed[i],X_closed[i+1]
             if min(y,yn) <= y_val <= max(y,yn):
-                m = (yn-y)/(xn-x)
-                b = y-m*x
-    
                 # edge cases (@TODO handle this better)
-                if m == 0:
-                    # if we encounter a parallel line, just replace that
+                if yn == y:
+                    # if we encounter a parallel line, just use it as the bounds
                     bounds = [x,xn]
                     break
-                elif np.isinf(m):
-                    # if we encounter a purely vertical line, use that X as one of the bounds
+                elif xn == x:
+                    # if we encounter a purely vertical line, 
+                    #   use that X as one of the bounds
                     bounds.append(x)
                 else:
+                    # a "normal" line encountered; construct it
+                    m = (yn-y)/(xn-x)
+                    b = y-m*x
                     lines.append([m,b])
     
         # the section (columns) that we want to replace are the intersection
-        #   points of our intersecting lines:
+        #   points of any intersecting lines:
         for m,b in lines:
-            try:
-                bounds.append(int((y_val-b)/m))
-            except Exception:
-                import pdb;pdb.set_trace()
+            bounds.append(int((y_val-b)/m))
         # sort for convenience:
         bounds.sort()
         return bounds
