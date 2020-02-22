@@ -17,7 +17,7 @@ TEMPLATE_FILE = "../Data/reference_images/Lena.png"
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", type=str, default=TEST_FILE, help="Input video containing fiducial information.")
-    parser.add_argument("--verbose", type=int, default=1, help="Plot processed images (and timing)")
+    parser.add_argument("--verbose", type=int, default=1, help="Set verbosity level (0 is none, 1 is console output, 2 is images).")
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -58,5 +58,4 @@ if __name__ == "__main__":
                 ctime = time.time()
                 print("Processed frame #{}/{} in {:.3f}s ({:.3f}s total".format(frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
-
-    code.interact(local=locals())
+    # code.interact(local=locals())
