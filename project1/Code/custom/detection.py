@@ -113,7 +113,7 @@ class ARDetector:
 
         # return the rectangular approximation of the parent of each detected tag
         parents = [hierarchy[0][i][3] for i in tag_idxs]
-        parents = [cv2.approxPolyDP(contours[p],2,True) for p in parents]
+        parents = [cv2.approxPolyDP(contours[p],3,True) for p in parents]
         
         # filter parents (note that this is conservative, we'll miss frames
         parents = [p for p in parents if len(p)==4]
