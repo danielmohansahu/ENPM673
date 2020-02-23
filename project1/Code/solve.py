@@ -66,6 +66,6 @@ if __name__ == "__main__":
             writer.write(frame)
             if args.verbosity:
                 ctime = time.time()
-                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
+                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total)".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
     # code.interact(local=locals())
