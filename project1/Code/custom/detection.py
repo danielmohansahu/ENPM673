@@ -81,7 +81,7 @@ class ARDetector:
         key = cv2.waitKey(0)
         if key == ord('q'):
             # stop debugging on 'q'
-            cls.verbosity(0)
+            cls.debug(0)
         cv2.destroyAllWindows()
 
     @classmethod
