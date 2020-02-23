@@ -54,37 +54,14 @@ if __name__ == "__main__":
 
             for corners in detections:
                 frame, homography = tracker.track(frame, corners)
-            '''
-            question here - I put this in because the code broke sometimes, same as below
-            '''    
-            if detections != []:
-                print('contours', detections[0])
-            # Create the cube
-            
-            s = 512
-            source = np.array([[0,0], [s,0], [s,s],[0,s]])
-      
-            
-            # Maybe some frames aren't getting a detection?? Stops program when []
-            '''
-            question here - I put this in because the code broke sometimes
-            '''     
-            pts = np.array(detections)
-            if pts != []:
-                pts_im = pts.reshape(4,2)
-               
-            
-            H = ARTracker.get_homography( pts_im, source)
-            proj_mat = projection_matrix(H)
-            
-            image = cube(proj_mat, frame)
-            cv2.imshow('cube', image)
-            cv2.waitKey(1)
-           
+                proj_mat = projection_matrix(homography)
+                frame = cube(proj_mat, frame)
+                if args.verbosity > 1:
+                    detector.plot(frame, "cube")
            
             writer.write(frame)
             if args.verbosity:
                 ctime = time.time()
-                #print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
+                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
 
