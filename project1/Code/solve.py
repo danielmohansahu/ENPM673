@@ -9,8 +9,9 @@ import cv2
 from custom import file_utils
 from custom.tracking import ARTracker
 from custom.detection import ARDetector
+from custom.projection import cube, draw, projection_matrix 
 
-TEST_FILE = "../Data/Video_dataset/Tag1.mp4"
+TEST_FILE = "../Data/Video_dataset/Tag0.mp4"
 AR_FILE = "../Data/reference_images/ref_marker.png"
 TEMPLATE_FILE = "../Data/reference_images/Lena.png"
 
@@ -46,26 +47,44 @@ if __name__ == "__main__":
             # metadata
             frame_start = time.time()
             frame_count += 1
-
+            # Create a black image
+            #black = np.zeros((1980, 1080), np.uint8)
             detector = ARDetector(frame, reference_tag)
             detections, ids = detector.detect()
-            
+
             for corners in detections:
                 frame, homography = tracker.track(frame, corners)
-
-                """TO BRENDA:
-                
-                Here's where I think it makes sense to integrate your stuff.
-
-                `frame` is the frame with the Lena.png superimposed
-                `detections` are all the (oriented) contours detected in the frame
-                `homographies` is a list of calculated homography matrices
-
-                """
-
+            '''
+            question here - I put this in because the code broke sometimes, same as below
+            '''    
+            if detections != []:
+                print('contours', detections[0])
+            # Create the cube
+            
+            s = 512
+            source = np.array([[0,0], [s,0], [s,s],[0,s]])
+      
+            
+            # Maybe some frames aren't getting a detection?? Stops program when []
+            '''
+            question here - I put this in because the code broke sometimes
+            '''     
+            pts = np.array(detections)
+            if pts != []:
+                pts_im = pts.reshape(4,2)
+               
+            
+            H = ARTracker.get_homography( pts_im, source)
+            proj_mat = projection_matrix(H)
+            
+            image = cube(proj_mat, frame)
+            cv2.imshow('cube', image)
+            cv2.waitKey(1)
+           
+           
             writer.write(frame)
             if args.verbosity:
                 ctime = time.time()
-                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total)".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
+                #print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
-    # code.interact(local=locals())
+
