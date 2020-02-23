@@ -14,15 +14,35 @@ class ARTracker:
         # template image to use in AR replacement
         self._template = template
         self._template_corners = get_corners(self._template)
-   
+
+        # homography kalman filter (for single tag tracking)
+        self._first_filter = True
+        self._kalman = cv2.KalmanFilter(9,9,0,type=cv2.CV_64F)
+        self._kalman.measurementMatrix = np.eye(9,dtype=np.float64)
+        self._kalman.transitionMatrix = np.eye(9,dtype=np.float64)
+        self._kalman.processNoiseCov = np.eye(9,dtype=np.float64) * 0.1
+        self._kalman.measurementNoiseCov = np.eye(9,dtype=np.float64) * 0.1
+
+        # initialize filter
+        self.filter(np.zeros(9,dtype=np.float64))
+
+    def filter(self,h):
+        """Filter our homography estimate.
+        """
+        self._kalman.correct(h.flatten())
+        h = self._kalman.predict()
+        h.resize(3,3)
+        return h
+
     def track(self, frame, ar_contour):
         # compute homography
         with Timer("\thomography", self.__verbosity):
-            H = self.get_homography(ar_contour, self._template_corners)
-        
+            homography = self.get_homography(ar_contour, self._template_corners)
+            # homography = self.filter(homography)
+
         # warp template image
         with Timer("\twarping", self.__verbosity):
-            warped = self.warp_image(self._template, H, frame.shape)
+            warped = self.warp_image(self._template, homography, frame.shape)
         if self.__verbosity > 2:
             self.plot(warped, "warped")
 
@@ -32,7 +52,7 @@ class ARTracker:
         if self.__verbosity > 2:
             self.plot(replaced, "replaced")
 
-        return replaced, H
+        return replaced, homography
     #------------------ STATIC API FUNCTIONS ------------------#
 
     @staticmethod
