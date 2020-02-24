@@ -76,19 +76,18 @@ def projection_matrix(homography):
    #Check sign of B_tilda
    if (linalg.det(B_tilda)) < 0:
        B_tilda *= -1 
-   # print('B',B_tilda)    
+   
    col_1 = B_tilda[:, 0]
    col_2 = B_tilda[:, 1]
    col_3 = B_tilda[:, 2]
-   #lam = ((np.linalg.norm(np.matmul(Kinv,H_cube[:,0]))+(np.linalg.norm(np.matmul(Kinv,H_cube[:,1]))))/2)
-   # l = math.sqrt(la.norm(col_1, 2) * la.norm(col_2, 2))
+   
    lambda1 = 1/((linalg.norm(col_1, 2) + linalg.norm(col_2, 2))/2)
-   #rint('l',lambda1)
+   
    r_1 = col_1 * lambda1 
    r_2 = col_2 * lambda1
    r_3 = np.cross(r_1, r_2)
    translation = col_3 * lambda1 
    projection = np.stack((r_1, r_2, r_3, translation)).T
-   # print('Projection Matrix', projection)
+   
    return np.dot(K, projection)
 
