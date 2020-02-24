@@ -11,13 +11,15 @@ from custom.tracking import ARTracker
 from custom.detection import ARDetector
 from custom.projection import cube, draw, projection_matrix 
 
-TEST_FILE = "../Data/Video_dataset/Tag0.mp4"
-AR_FILE = "../Data/reference_images/ref_marker.png"
-TEMPLATE_FILE = "../Data/reference_images/Lena.png"
+VIDEO_FILE = "Tag0.mp4"
+TAG_FILE = "ref_marker.png"
+REFERENCE_FILE = "Lena.png"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video", type=str, default=TEST_FILE, help="Input video containing fiducial information.")
+    parser.add_argument("--video", type=str, default=VIDEO_FILE, help="Input video containing fiducial images to process.")
+    parser.add_argument("--tag_file", type=str, default=TAG_FILE, help="Image of the fiducial to detect.")
+    parser.add_argument("--reference_file", type=str, default=REFERENCE_FILE, help="Input picture to replace the detected tag.")
     parser.add_argument("--verbosity", type=int, default=1, help="Set verbosity level (0 is none, 1 is console output, 2 is images).")
     return parser.parse_args()
 
@@ -26,8 +28,8 @@ if __name__ == "__main__":
     args = parse_args()
     
     # get template file (lena) and reference tag file
-    template = file_utils.imread(TEMPLATE_FILE)
-    reference_tag = file_utils.imread(AR_FILE,0)
+    template = file_utils.imread(args.reference_file)
+    reference_tag = file_utils.imread(args.tag_file,0)
 
     # initialize tracker and set class debugging
     tracker = ARTracker(template)
@@ -62,6 +64,6 @@ if __name__ == "__main__":
             writer.write(frame)
             if args.verbosity:
                 ctime = time.time()
-                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
+                print("Found ids {} in frame #{}/{} in {:.3f}s ({:.3f}s total)".format(ids, frame_count, vidgen.frame_count, ctime-frame_start, ctime-process_start))
 
 
