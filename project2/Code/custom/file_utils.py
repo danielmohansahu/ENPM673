@@ -73,7 +73,7 @@ class VidGenerator(Generator):
         # sanity check file and save metadata
         self._path = Path(filepath)
         if not self._path.is_file():
-            raise RuntimeError("Unable to open video {}; no such file.")
+            raise RuntimeError("Unable to open video {}; no such file.".format(filepath))
         self.name = self._path.name
         self.path = self._path.as_posix()
 
