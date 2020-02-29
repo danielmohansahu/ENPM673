@@ -4,6 +4,14 @@
 import numpy as np
 import cv2
 
+def rectify(frame, camera_matrix, distortion):
+    """Rectify the given image.
+
+    This is just a thin wrapper around cv2.undistortPoints
+    """
+    frame = cv2.undistort(frame, camera_matrix, distortion)
+    return frame
+
 def sharpen(frame, kernel_size=(5,5), sigma=1.0, amount=1.0):
     """Sharpen the high frequency components of the given frame.
 
