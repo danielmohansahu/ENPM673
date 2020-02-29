@@ -16,6 +16,7 @@ if __name__=="__main__":
     
     # get all pictures
     image_files = glob.glob(args.pictures)
+    image_files.sort() 
 
     # convert to video
     pics2video(image_files, args.output)
