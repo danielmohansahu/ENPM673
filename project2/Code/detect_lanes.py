@@ -7,9 +7,10 @@ import cv2
 import numpy as np
 from custom import utils, file_utils, pre_process
 
-# default files (for testing
+# defaults (for testing)
 CALIBRATION="../Data/data_1/camera_params.yaml"
 VIDEO="../Data/data_1/data_1.mp4"
+LANE_POINTS=[[0,422],[589,256],[694,244],[840,510]]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -33,6 +34,10 @@ if __name__ == "__main__":
     # get camera calibration
     K,D = load_params(args.calibration)
 
+    # compute homography (from manual points)
+    H,_ = cv2.findHomography(np.array(LANE_POINTS),np.array([[0,512],[0,0],[1392,0],[1392,512]])) 
+    H2,_ = cv2.findHomography(np.array([[0,512],[0,0],[1392,0],[1392,512]]),np.array(LANE_POINTS)) 
+
     # initialize our video IO
     vidgen = file_utils.VidGenerator(args.video, args.verbosity)
     output_file = "processed_" + os.path.basename(args.video)
@@ -44,18 +49,31 @@ if __name__ == "__main__":
             
             # undistort image
             frame = pre_process.rectify(frame, K, D)
+            utils.plot(frame, "Frame")
 
             # convert to grayscale
             gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-            utils.plot(gray, "Grayscale")
+            # utils.plot(gray, "Grayscale")
 
             # denoise the image
             blur = cv2.GaussianBlur(gray,(7,7),cv2.BORDER_DEFAULT)
-            utils.plot(blur, "Blur")
+            # utils.plot(blur, "Blur")
 
             # edge detection
             edges = cv2.Canny(blur, 100, 225)
             utils.plot(edges, "Edge Detection")
+
+            # hough line detection
+            minLineLength = 100
+            maxLineGap = 50
+            framelines = gray.copy()
+            lines = cv2.HoughLinesP(edges,1,np.pi/180,100,minLineLength,maxLineGap)
+            for line in lines:
+                for x1,y1,x2,y2 in line:
+                    cv2.line(framelines,(x1,y1),(x2,y2),(0,255,0),2)
+            utils.plot(framelines, "Line Detection")
+
+
 
 
             writer.write(frame)
