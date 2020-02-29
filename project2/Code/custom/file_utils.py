@@ -13,7 +13,7 @@ from collections import Generator
 import numpy as np
 import cv2
 
-def pics2video(image_files, output_file, fps=2):
+def pics2video(image_files, output_file, fps=10):
     """Convert a given (ordered) container of image files to a video.
     """
 
