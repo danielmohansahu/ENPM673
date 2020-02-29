@@ -6,10 +6,38 @@ for file operation (specifically video and image files).
 """
 
 import os
+import sys
+import time
 from pathlib import Path
 from collections import Generator
 import numpy as np
 import cv2
+
+def pics2video(image_files, output_file, fps=2):
+    """Convert a given (ordered) container of image files to a video.
+    """
+
+    # get size and data from first image (assuming they're the same)
+    frame = imread(image_files[0])
+    size = (frame.shape[1], frame.shape[0])
+
+    # create video write object
+    video_writer = VidWriter(output_file, cv2.VideoWriter_fourcc(*'DIVX'), fps, size)
+   
+    # status bar initialization
+    count = 0
+    total = len(image_files)
+
+    with video_writer as writer:
+        for image_file in image_files:
+            frame = imread(image_file)
+            writer.write(frame)
+
+            # update status bar
+            count += 1
+            sys.stdout.write('\r')
+            sys.stdout.write("[%-20s] %d%%" % ('='*int(20*count/total), int(100*count/total)))
+            sys.stdout.flush()
 
 def vidshow(filepath):
     """ Display the given video using our custom generator.
@@ -26,8 +54,8 @@ def vidshow(filepath):
     cv2.destroyAllWindows()
 
 class VidWriter:
-    def __init__(self, filename, fps, fourcc, size):
-        self._writer = cv2.VideoWriter(filename, fps, fourcc, size)
+    def __init__(self, filename, fourcc, fps, size, isColor=True):
+        self._writer = cv2.VideoWriter(filename, fourcc, fps, size, isColor)
     
     def __enter__(self):
         return self._writer
@@ -41,7 +69,7 @@ class VidGenerator(Generator):
     This function returns an object that can be accessed sequentially
     (a la list comprehension, etc.) to get each video file.
     """
-    def __init__(self, filepath):
+    def __init__(self, filepath, verbosity=1):
         # sanity check file and save metadata
         self._path = Path(filepath)
         if not self._path.is_file():
@@ -61,7 +89,27 @@ class VidGenerator(Generator):
             int(self._video.get(cv2.CAP_PROP_FRAME_HEIGHT))
         )
 
+        # timing and debugging information
+        self._verbosity = verbosity
+        self._last_access_time = None
+        self._start_access_time = time.time()
+        self._current_frame = 0
+
     def send(self, ignored):
+        """Core accessor of the underlying video file.
+        """
+
+        # timer / debugger
+        #  note that this rests on the (shaky) assumption
+        #  that the time *between* access is the processing
+        #  time.
+        if self._verbosity:
+            new_time = time.time()
+            if self._current_frame:
+                print("Frame #{}/{} processed in {:.3f}s ({:.3f}s total)".format(self._current_frame, self.frame_count, new_time-self._last_access_time, new_time-self._start_access_time))
+            self._last_access_time = new_time
+            self._current_frame += 1
+
         ret, frame = self._video.read()
         # check if we're done
         if frame is None:
