@@ -1,6 +1,7 @@
 """Collection of miscellaneous useful functions.
 """
 import cv2
+import numpy as np
 import time
 
 # global variables
@@ -17,7 +18,23 @@ class Timer(object):
         if self.verbosity > 1:
             self.end = time.time()
             print(f"{self.description}: {self.end - self.start}")
-    
+
+def get_subsection(size,p_x,p_y):
+    """Return a rectangular contour centered around the given frame size.
+
+    This returns a set of points ordered ClockWise, starting from
+    the bottom left point.
+
+    Args:
+        size: [X,Y] dimension size
+        p_x: X dimension padding (rectangle width)
+        p_y: Y dimension padding (rectangle height)
+    """ 
+    c_x = size[0]//2
+    c_y = size[1]//2
+    result = [[c_x-p_x,c_y+p_y],[c_x-p_x,c_y-p_y],[c_x+p_x,c_y-p_y],[c_x+p_x,c_y+p_y]]
+    return np.array(result)
+
 def plot(frame, text="frame"):
     """Plot a given frame.
     """
