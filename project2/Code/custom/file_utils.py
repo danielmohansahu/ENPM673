@@ -8,12 +8,22 @@ for file operation (specifically video and image files).
 import os
 import sys
 import time
+import yaml
 from pathlib import Path
 from collections import Generator
 import numpy as np
 import cv2
 
-def pics2video(image_files, output_file, fps=10):
+def load_params(filename):
+    """Load camera parameters from a given file."""
+    with open(filename, 'r') as yamlfile:
+        data = yaml.safe_load(yamlfile)
+    K = np.array([float(val) for val in data["K"].split()])
+    K.resize([3,3])
+    D = np.array([float(val) for val in data["D"].split()])
+    return K,D
+
+def pics2video(image_files, output_file, fps=15):
     """Convert a given (ordered) container of image files to a video.
     """
 
