@@ -8,11 +8,12 @@ We use Python3 and the following non-standard modules:
  - matplotlib
  - yaml
  - numpy
+ - scipy
 
 All can be installed via:
 
 ```bash
-pip install numpy yaml matplotlib
+pip install numpy yaml matplotlib scipy
 ``` 
 
 ### Usage:
@@ -29,23 +30,20 @@ TODO:
  - really just play with this. the pre_processing isn't doing very well, but the structure is in place to try lots of different algorithms to make it better. This might apply well to Part #2 as well.
 
 ##### Part #2
-We're only running dataset #1 so far. Currently we assume the following:
 
- - Data is stored relative to the codebase in the ../Data/ directory.
-
-
-The first thing we need to do is convert our data set to a video (as they're given as isolated images). We do this via the following:
+Each data set has its own custom script. To run dataset #1, call:  
 ```bash
-./make_video.py "../Data/data_1/data/*.png" -o ../Data/data_1/data_1.mp4
+./process_data1.py -i PATH_TO_IMAGES
 ```
 
-Then we can run the core script:
+This will find all the images related to dataset #1, combine them into a video, process that video, and output the video with lanes detected where the script is ran.
+
+Running dataset #2 is similar, i.e.:  
 ```bash
-./detect_lanes.py
+./process_data2.py -i PATH_TO_IMAGES
 ```
 
-@TODO:
- - I've gotten as far as to try to do line fitting to the warped image (i.e. approach #2 specified in the problem description). 
- - the solution I've implemented isn't very robust at all; there are lots of parts which are problematic
- - The bulk of the work remaining (besides improving the robustness) is to determine which detected lines are actually lanes and to transform them back into the original image coordinates. Then we can do all the fancy stuff (e.g. turn prediction)
- - See lines 40-68 of `detect_lanes.py` for a top level view of everything I'm currently doing.
+Frame-by-frame debugging can be enabled via the `-d True` flag. This will show every stage of processing for each frame. To continue to the next frame hit any key. To stop showing images entirely hit `q`.
+
+Note that, although you can optionally supply the intrinsics calibration YAML we recommend using the local one. This is because the YAMLs provided in the problem definition are not properly formatted and cannot be parsed.
+
