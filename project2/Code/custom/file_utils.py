@@ -113,12 +113,12 @@ class VidGenerator(Generator):
         #  note that this rests on the (shaky) assumption
         #  that the time *between* access is the processing
         #  time.
-        if self._verbosity:
-            if self._current_frame:
-                sys.stdout.write('\r')
-                sys.stdout.write("[%-20s] %d%%" % ('='*int(20*self._current_frame/self.frame_count), int(100*self._current_frame/self.frame_count)))
-                sys.stdout.flush()
-            self._current_frame += 1
+        if self._current_frame:
+            sys.stdout.write('\r')
+            sys.stdout.write("[%-20s] %d%%" % ('='*int(20*self._current_frame/self.frame_count), int(100*self._current_frame/self.frame_count)))
+            sys.stdout.flush()
+        
+        self._current_frame += 1
 
         ret, frame = self._video.read()
         # check if we're done
