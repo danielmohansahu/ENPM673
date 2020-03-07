@@ -1,6 +1,6 @@
 """Lane Class; used for tracking/probablistic estimate of lanes.
 """
-
+import cv2
 import numpy as np
 import scipy.stats
 
@@ -16,7 +16,8 @@ class Lane:
         self.rho = None # best estimate
         self.slopes = [self.slope(*seed)]
         self.matches_per_frame = [1]
-        self.n_lanes = 1000
+        self.min_frames = 5
+        self.n_lanes = 10
         self.min_frames = 10
         self.maybe_factor = 2
 
@@ -37,6 +38,13 @@ class Lane:
 
         return np.math.atan(slope)*2/np.pi
 
+    def filter_slope(self,slope):
+        """Apply heuristics to slopes (e.g. no vertical/horizontal lines.
+        """
+        if (abs(1-slope) < 0.05) or (abs(slope) < 0.05):
+            return False
+        return True
+
     def get_best_match(self, lines):
         """Parse the given list of lines for potential matches.
 
@@ -49,6 +57,8 @@ class Lane:
         maybe_slope = np.inf
         for line in lines:
             slope = self.slope(*line)
+            if not self.filter_slope(slope):
+                continue
             if self.confidence_interval[0] <= slope <= self.confidence_interval[1]:
                 self.slopes.append(slope)
                 definite.append(line)
@@ -81,20 +91,46 @@ class Lane:
             definite.append(maybe)
             self.slopes.append(maybe_slope)
        
-
         self.update(sum(self.matches_per_frame[-self.n_lanes:]))
+        return self.get_latest_estimate()
 
-        # return our best estimate for the lane, sampled at min/max X of current lines
-        definite = np.array(definite)
-        X = definite[:,[0,2]].flatten()
-        Y = definite[:,[1,3]].flatten()
-        if X[1]==X[0]:
-            return []
-        fit = np.polynomial.Polynomial.fit(X,Y,1)
+    def get_latest_estimate(self):
+        """Return our best estimate for the lane.
+
+        This fits a second degree polynomial to the last few lane matches.
+        """
         
-        x,y = fit.linspace(2)
-        return [int(x[0]),int(y[0]),int(x[1]),int(y[1])]
 
+        # get the last N lane estimates:
+        last_estimates = np.array(self.matches[-sum(self.matches_per_frame[-self.n_lanes:]):])
+
+        # fit a line to each of these and sample in our X domain
+        X = []
+        Y = []
+        for x1,y1,x2,y2 in last_estimates:
+            if x1==x2:
+                # ignore vertical lines
+                continue
+            line_fit = np.polynomial.Polynomial.fit([x1,x2],[y1,y2],1)
+            x,y = line_fit.linspace()
+            X += x.tolist()
+            Y += y.tolist()
+        
+        # try to fit a second order polynomial to our lines 
+        fit,res = np.polynomial.Polynomial.fit(X,Y,2,full=True)
+        return fit
+
+    def plot(self, frame, fit, thickness=2):
+        """Plot the given polynomial on the given frame.
+        """
+        if not fit:
+            return frame
+        X,Y = fit.linspace()
+        X = np.array(X,dtype=np.int32)
+        Y = np.array(Y,dtype=np.int32)
+        curve = np.column_stack((X,Y))
+        cv2.polylines(frame, [curve], False, color=(0,0,255),thickness=thickness)
+        return frame
 
     def update(self, last_n_matches=None):
         """Recalculate our confidence and Line Range with any new data.
@@ -106,7 +142,7 @@ class Lane:
             # use all the matches
             last_n_matches = len(self.slopes)
 
-        if len(self.matches_per_frame) < 5:
+        if len(self.matches_per_frame) < self.min_frames:
             return
 
         # calculate std deviation of the slope of the last N matches

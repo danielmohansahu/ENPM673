@@ -58,11 +58,9 @@ def process_image(frame, intrinsics, left_lane, right_lane, debug=False):
 
     # Lane Filtering / Tracking
     ll = left_lane.get_best_match(lines[:,0])
+    left_lane.plot(result,ll)
     rl = right_lane.get_best_match(lines[:,0])
-    if rl:
-        cv2.line(result,(rl[0],rl[1]),(rl[2],rl[3]),(0,0,255),2)
-    if ll:
-        cv2.line(result,(ll[0],ll[1]),(ll[2],ll[3]),(0,0,255),2)
+    right_lane.plot(result,rl)
     if debug: 
         utils.plot(result, "Lanes")
 
