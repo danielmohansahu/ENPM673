@@ -18,7 +18,7 @@ class Lane:
         self.matches_per_frame = [1]
         self.n_lanes = 1000
         self.min_frames = 10
-        self.maybe_factor = 1.25
+        self.maybe_factor = 2
 
         # initialize our confidence
         self.confidence = 0.95
@@ -29,11 +29,13 @@ class Lane:
         self.update()
 
     def slope(self, x1, y1, x2, y2):
-        """Calculate slope of given line"""
+        """Calculate normalized (0,1) slope of given line"""
         if x1 == x2:
-            return np.inf
+            slope = np.inf
         else:
-            return (y2-y1)/(x2-x1)
+            slope = (y2-y1)/(x2-x1)
+
+        return np.math.atan(slope)*2/np.pi
 
     def get_best_match(self, lines):
         """Parse the given list of lines for potential matches.
@@ -86,6 +88,8 @@ class Lane:
         definite = np.array(definite)
         X = definite[:,[0,2]].flatten()
         Y = definite[:,[1,3]].flatten()
+        if X[1]==X[0]:
+            return []
         fit = np.polynomial.Polynomial.fit(X,Y,1)
         
         x,y = fit.linspace(2)
@@ -103,7 +107,6 @@ class Lane:
             last_n_matches = len(self.slopes)
 
         if len(self.matches_per_frame) < 5:
-            print("Note enough matches to update interval.")
             return
 
         # calculate std deviation of the slope of the last N matches
@@ -115,7 +118,6 @@ class Lane:
         ci_old = self.confidence_interval
         self.confidence_interval = [m-h, m+h]
         self.rho = m
-        print("CI {}->{}".format(ci_old, self.confidence_interval))
         
 
 
