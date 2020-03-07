@@ -40,7 +40,7 @@ def roi(frame, vertices):
 def hough_lines(frame, rho=1, theta=np.pi/40, threshold=30, min_line_len=100, max_line_gap=250):
     """Extract Hough Lines
     """
-    result = np.zeros(frame.shape, dtype=np.uint8)
+    result = np.zeros((frame.shape[0],frame.shape[1],3), dtype=np.uint8)
     lines = cv2.HoughLinesP(
             frame, 
             rho, 
