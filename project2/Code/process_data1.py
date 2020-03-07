@@ -7,7 +7,7 @@ import argparse
 from custom import file_utils, lane, process_video
 
 # File Locations
-CALIBRATION="../Data/data_1/camera_params.yaml"
+CALIBRATION="data/data1_intrinsics.yaml"
 IMAGE_DIR="../Data/data_1/data/"
 VIDEOFILE="data_1.mp4"
 
@@ -45,5 +45,5 @@ if __name__ == "__main__":
     
     print("Processing {}".format(VIDEOFILE))
     process_video(VIDEOFILE, (K,D), left, right, debug=args.debug)
-    print("Finished processing image.")
+    print("Finished processing images.")
 
