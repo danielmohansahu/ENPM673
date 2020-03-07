@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Process the given data set #1
 """
-
+import os
 import glob
 import argparse
 from custom import file_utils, lane, process_video
@@ -28,16 +28,17 @@ if __name__ == "__main__":
     # get camera calibration
     K,D = file_utils.load_params(args.calibration)
 
-    # convert images to a video (for faster processing)
-    images_regex = args.image_dir + "*" + args.image_type
-    image_files = glob.glob(images_regex)
-    if len(image_files) == 0:
-        raise RuntimeError("No images found matching {}".format(images_regex))
-    image_files.sort() 
+    if not os.path.isfile(VIDEOFILE):
+        # convert images to a video (for faster processing)
+        images_regex = args.image_dir + "*" + args.image_type
+        image_files = glob.glob(images_regex)
+        if len(image_files) == 0:
+            raise RuntimeError("No images found matching {}".format(images_regex))
+        image_files.sort() 
 
-    # convert to video
-    print("Converting images to a video...")
-    file_utils.pics2video(image_files, VIDEOFILE)
+        # convert to video
+        print("Converting images to a video...")
+        file_utils.pics2video(image_files, VIDEOFILE)
 
     # rough slope tracking, initialized to our first frame lanes
     left = lane.Lane(LANE_POINTS[0] + LANE_POINTS[1])

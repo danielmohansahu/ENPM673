@@ -9,7 +9,7 @@ from custom import file_utils, lane, process_video
 CALIBRATION="data/data2_intrinsics.yaml"
 VIDEO="../Data/data_2/challenge_video.mp4"
 # manually selected lane points
-LANE_POINTS=[[223,508],[615,258],[697,265],[920,510]]
+LANE_POINTS=[[315,695],[603,494],[720,469],[1077,699]]
 
 def parse_args():
     parser = argparse.ArgumentParser()
