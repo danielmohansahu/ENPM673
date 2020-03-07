@@ -44,28 +44,73 @@ if __name__ == "__main__":
             # utils.plot(rect, "Rect")
 
             # convert to grayscale
-            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            gray = cv2.cvtColor(rect, cv2.COLOR_RGB2GRAY)
             # utils.plot(gray, "Grayscale")
+            
+            # convert to HSV
+            hsv = cv2.cvtColor(rect, cv2.COLOR_RGB2HSV)
+            # utils.plot(hsv, "HSV")
+
+            lower_yellow = np.array([20, 100, 100], dtype = "uint8")
+            upper_yellow = np.array([30, 255, 255], dtype="uint8")
+            mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
+            mask_white = cv2.inRange(gray, 200, 255)
+            mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
+            mask_yw_image = cv2.bitwise_and(gray, mask_yw)
+            # utils.plot(mask_yw_image, "YellowAndWhite")
 
             # warp perspective (convert lanes to "vertical")
-            warped = cv2.warpPerspective(gray, H, dsize=vidgen.size)
+            # warped = cv2.warpPerspective(mask_yw_image, H, dsize=vidgen.size)
             # utils.plot(warped, "Warped")
+            # warped = mask_yw_image.copy()
 
             # denoise the image
-            blur = cv2.GaussianBlur(warped,(7,7),cv2.BORDER_DEFAULT)
+            blur = cv2.GaussianBlur(mask_yw_image,(7,7),cv2.BORDER_DEFAULT)
             # utils.plot(blur, "Blur")
             
             # threshold
-            ret, thresh = cv2.threshold(blur, 200, 255, cv2.THRESH_BINARY)
+            # ret, thresh = cv2.threshold(blur, 200, 255, cv2.THRESH_BINARY)
             # utils.plot(thresh, "thresh")
            
             # edge detection
-            # edges = cv2.Canny(thresh, 50, 125)
+            edges = cv2.Canny(blur, 50, 125)
             # utils.plot(edges, "Edge Detection")
+
+            # ROI
+            mask = np.zeros_like(edges)
+            vertices=np.array([[0,256],[1392,256],[1392,512],[0,512]])
+            cv2.fillPoly(mask, [vertices], 255)
+            roi_image = cv2.bitwise_and(edges, mask)
+            utils.plot(roi_image, "ROI")
             
+            # hough lines
+            rho = 1
+            theta = np.pi/40
+            threshold = 30
+            min_line_len = 100
+            max_line_gap = 250
+            lines = cv2.HoughLinesP(
+                    roi_image, 
+                    rho, 
+                    theta, 
+                    threshold, 
+                    np.array([]), 
+                    minLineLength=min_line_len, 
+                    maxLineGap=max_line_gap)
+            line_img = np.zeros(frame.shape, dtype=np.uint8)
+           
+            for x1,y1,x2,y2 in lines[:,0]:
+                cv2.line(line_img,(x1,y1),(x2,y2),(0,0,255),2)
+            
+            utils.plot(line_img, "Hough")
+
+
+            
+            result = line_img.copy()
+
             # fit lines (via column histogram method)
-            result,fits = lines.polyfit(thresh)
-            utils.plot(result, "Detections")
+            # result,fits = lines.polyfit(result)
+            # utils.plot(result, "Detections")
 
             writer.write(result)
 
