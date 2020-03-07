@@ -57,9 +57,11 @@ def process_image(frame, intrinsics, left_lane, right_lane, debug=False):
         utils.plot(hough, "Hough Lines")
 
     # Lane Filtering / Tracking
-    ll = left_lane.get_best_match(lines[:,0])
+    left_lane.update(lines[:,0])
+    right_lane.update(lines[:,0])
+    ll = left_lane.predict()
+    rl = right_lane.predict()
     left_lane.plot(result,ll)
-    rl = right_lane.get_best_match(lines[:,0])
     right_lane.plot(result,rl)
     if debug: 
         utils.plot(result, "Lanes")
