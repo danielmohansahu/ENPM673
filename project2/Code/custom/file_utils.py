@@ -114,15 +114,16 @@ class VidGenerator(Generator):
         #  that the time *between* access is the processing
         #  time.
         if self._verbosity:
-            new_time = time.time()
             if self._current_frame:
-                print("Frame #{}/{} processed in {:.3f}s ({:.3f}s total)".format(self._current_frame, self.frame_count, new_time-self._last_access_time, new_time-self._start_access_time))
-            self._last_access_time = new_time
+                sys.stdout.write('\r')
+                sys.stdout.write("[%-20s] %d%%" % ('='*int(20*self._current_frame/self.frame_count), int(100*self._current_frame/self.frame_count)))
+                sys.stdout.flush()
             self._current_frame += 1
 
         ret, frame = self._video.read()
         # check if we're done
         if frame is None:
+            print("\nFinished processing in {}".format(time.time()-self._start_access_time))
             self.throw()
         return ret, frame
 
