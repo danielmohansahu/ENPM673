@@ -4,13 +4,14 @@ import os
 import argparse
 import cv2
 import numpy as np
-from custom import utils, file_utils, pre_process, lines
+from custom import utils, file_utils, pre_process, lane
 
 # defaults (for testing)
 CALIBRATION="../Data/data_1/camera_params.yaml"
 VIDEO="../Data/data_1/data_1.mp4"
 # manually selected lane points
-LANE_POINTS=[[0,422],[589,256],[694,244],[840,510]]
+# LANE_POINTS=[[0,422],[589,256],[694,244],[840,510]]
+LANE_POINTS=[[223,508],[615,258],[697,265],[920,510]]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -34,6 +35,11 @@ if __name__ == "__main__":
     subsect = utils.get_subsection(vidgen.size,400,250)
     H,_ = cv2.findHomography(np.array(LANE_POINTS),subsect) 
 
+    # rough slope tracking
+    #  initialized to our horizon lines
+    left = lane.Lane(LANE_POINTS[0] + LANE_POINTS[1])
+    right = lane.Lane(LANE_POINTS[2] + LANE_POINTS[3])
+    
     # step through each frame and process
     with video_writer as writer:
         for ret,frame in vidgen:
@@ -98,9 +104,14 @@ if __name__ == "__main__":
                     minLineLength=min_line_len, 
                     maxLineGap=max_line_gap)
             line_img = np.zeros(frame.shape, dtype=np.uint8)
-           
-            for x1,y1,x2,y2 in lines[:,0]:
-                cv2.line(line_img,(x1,y1),(x2,y2),(0,0,255),2)
+
+            ll = left.get_best_match(lines[:,0])
+            rl = right.get_best_match(lines[:,0])
+         
+            if rl:
+                cv2.line(line_img,(rl[0],rl[1]),(rl[2],rl[3]),(0,0,255),2)
+            if ll:
+                cv2.line(line_img,(ll[0],ll[1]),(ll[2],ll[3]),(0,0,255),2)
             
             utils.plot(line_img, "Hough")
 
