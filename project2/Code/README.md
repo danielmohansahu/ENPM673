@@ -20,10 +20,11 @@ pip install numpy yaml matplotlib scipy
 
 ##### Part #1
 
-Part #1 can be ran via the following script:
+We perform basic pre-processing on the given video to enhance the lane/car detection. The most important aspect of this is Adaptive Histogram Equalization to handle the "double-humped" distribution of bright and dark areas.
 
 ```bash
-./pre_process.py
+# this will create a "processed_" video file in your current directory.
+./pre_process.py -v PATH_TO_VIDEO
 ```
 
 TODO:
@@ -33,6 +34,7 @@ TODO:
 
 Each data set has its own custom script. To run dataset #1, call:  
 ```bash
+# output file will be generate locally
 ./process_data1.py -i PATH_TO_IMAGES
 ```
 
@@ -40,6 +42,7 @@ This will find all the images related to dataset #1, combine them into a video, 
 
 Running dataset #2 is similar, i.e.:  
 ```bash
+# output file will be generate locally
 ./process_data2.py -i PATH_TO_IMAGES
 ```
 
