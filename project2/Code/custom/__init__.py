@@ -66,6 +66,11 @@ def process_image(frame, intrinsics, left_lane, right_lane, debug=False):
     if debug: 
         utils.plot(result, "Lanes")
 
+    # Lane Intersections
+    lane.plot_intersection(result, ll, rl)
+    if debug: 
+        utils.plot(result, "Lane Intersection")
+
     return result
 
 """Process and write to a video.

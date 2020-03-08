@@ -12,6 +12,65 @@ MIN_ANGLE=5
 MAX_ANGLE=85
 CONFIDENCE=0.95
 MAX_RESIDUAL=100000
+DISTANCE_HYSTERESIS=5
+
+def plot_intersection(frame, poly1, poly2):
+    """Calculate the polynomial and linear intersections of the given 
+    2nd order polynomials.
+    """
+    # sanity check that we've got approximations:
+    if not poly1 or not poly2:
+        return
+
+    def get_line(poly):
+        x,y = poly.linspace(2)
+        m = (y[1]-y[0])/(x[1]-x[0])
+        b = y[1] - m*x[1]
+        return b,m
+
+    # calculate the line equivalents
+    b1,m1 = get_line(poly1)
+    b2,m2 = get_line(poly2)
+    
+    # the line intersection is given by solving 
+    #  m1x+b1=m2x+b2 -> x = (b2-b1)/(m1-m2)
+    x_linear = (b2-b1)/(m1-m2)
+    y_linear = b1 + m1*x_linear
+
+    # the polynomial intersection is given by:
+    #  c1+b1x+a1x^2 = c2+b2x+a2x^2
+    #  -> (a2-a1)x^2 + (b2-b1)x + (c2-c1) = 0
+    #  solved via quadratic eqn
+    c1,b1,a1 = poly1.convert([-1,1]).coef
+    c2,b2,a2 = poly2.convert([-1,1]).coef
+    c,b,a = (c2-c1),(b2-b1),(a2-a1)
+
+    quad = np.math.sqrt(b*b-4*a*c)
+    opt1 = (-b + quad)/(2*a)
+    opt2 = (-b - quad)/(2*a)
+
+    if opt1 < 0:
+        x_poly = opt2
+        y_poly = poly1(x_poly)
+    else:
+        x_poly = opt1
+        y_poly = poly1(x_poly)
+
+    # plot both intersections
+    cv2.circle(frame, (int(x_linear),int(y_linear)),5,(255,0,0),thickness=-1)
+    cv2.circle(frame, (int(x_poly),int(y_poly)),5,(0,0,255),thickness=-1)
+
+    # plot text based on which direction we're going
+    if x_poly+DISTANCE_HYSTERESIS < x_linear:
+        text="Veering Left"
+    elif x_linear < x_poly-DISTANCE_HYSTERESIS:
+        text="Veering Right"
+    else:
+        text="Going Straight"
+    cv2.putText(frame,text,
+                (frame.shape[1]//3,frame.shape[0]-5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,(255,200,200),2)
 
 class Lane:
     """This class maintains a list of lines thought to be in the same lane.
