@@ -4,6 +4,16 @@
 import numpy as np
 import cv2
 
+def gamma_correct(frame, gamma=2.0):
+    """ Apply gamma correction to frame
+    https://www.pyimagesearch.com/2015/10/05/opencv-gamma-correction/
+    """
+    table = []
+    for i in np.arange(256):
+        table.append(((i / 255.0) ** (1/gamma)) * 255)
+    table = np.array(table,dtype="uint8")
+    return cv2.LUT(frame, table)
+
 def rectify(frame, camera_matrix, distortion):
     """Rectify the given image.
 
