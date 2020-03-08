@@ -84,7 +84,7 @@ def process_video(videofile,
     # initialize our video IO
     vidgen = file_utils.VidGenerator(videofile, debug)
     output_file = "processed_" + os.path.basename(videofile)
-    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'DIVX'), vidgen.fps, vidgen.size, isColor=True)
+    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), vidgen.fps, vidgen.size, isColor=True)
 
     # step through each frame and process
     with video_writer as writer:
