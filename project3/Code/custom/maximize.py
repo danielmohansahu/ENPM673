@@ -2,11 +2,11 @@
 
 import random
 import numpy as np
-from scipy.stats import multivariate_normal
+from scipy.stats import multivariate_normal as mn
 from numpy.linalg import det, inv
 
 # solver parameters; max iterations and minimum per-loop delta 
-MAX_ITERATIONS=10000
+MAX_ITERATIONS=1000
 MIN_LIKELIHOOD_CHANGE=0.0001
 
 class ExpectationMaximization:
@@ -39,19 +39,27 @@ class ExpectationMaximization:
         prev_like = self._likelihood()
 
         while abs(like-prev_like) > self._epsilon:
+            print("Current iter {}; likelihood: {}".format(count, like))
+
             # evaluate stop condition
             if count > self._max_iterations:
                 raise RuntimeError("Failed to converge.")
 
             # call expectation stage
-            self._expectation()
+            try:
+                self._expectation()
+            except np.linalg.LinAlgError:
+                raise RuntimeError("Failed to converge; singular matrix encountered.")
             
             # call maximization stage
             self._maximization()
             
             # recalculate likelihood
             prev_like = like
-            like = self._likelihood()
+            try:
+                like = self._likelihood()
+            except np.linalg.LinAlgError:
+                raise RuntimeError("Failed to converge; singular matrix encountered.")
             count += 1
 
         # return our calculated gaussian distribution parameters
@@ -62,11 +70,10 @@ class ExpectationMaximization:
         #  based on current parameters. 
         # Responsibilities are posterior probabilities.
         
-        norms = [multivariate_normal(self.mu[k],self.cov[k],allow_singular=True) for k in range(self.K)]
         for i,x in enumerate(self.X):
-            total_prob = sum([self.wgt[k]*norms[k].pdf(x) for k in range(self.K)])
+            total_prob = sum([self.wgt[k]*mn.pdf(x,self.mu[k],self.cov[k]) for k in range(self.K)])
             for k in range(self.K):
-                self.resp[k][i] = self.wgt[k]*norms[k].pdf(x)/total_prob
+                self.resp[k][i] = self.wgt[k]*mn.pdf(x,self.mu[k],self.cov[k])/total_prob
 
     def _maximization(self):
         # re-calculate the current parameters based on responsibilities
@@ -78,16 +85,11 @@ class ExpectationMaximization:
 
     def _likelihood(self):
         # calculate the current log likelihood of our parameters
-        norms = [multivariate_normal(self.mu[k],self.cov[k],allow_singular=True) for k in range(self.K)]
         res = 0
         for x in self.X:
-            res += sum([self.wgt[k]*norms[k].pdf(x) for k in range(self.K)])
+            res += sum([self.wgt[k]*mn.pdf(x,self.mu[k],self.cov[k]) for k in range(self.K)])
         res = np.log(res)
         return res
-
-
-
-
 
 
 
