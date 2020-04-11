@@ -1,0 +1,11 @@
+# ignore image / video files
+*.png
+*.mp4
+*.avi
+*.jpg
+
+# ignore pycache stuff
+*__pycache__/
+
+# ignore vim .swp
+*.*.swp
