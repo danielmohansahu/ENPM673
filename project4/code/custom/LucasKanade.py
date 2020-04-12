@@ -19,7 +19,7 @@ class LucasKanade:
         self.template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]] = template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]]
 
         # initialize our parameter estimate (to zero)
-        self.p = np.zeros((1,6),dtype=np.float32)
+        self.p = np.array([[1,0,0],[0,1,0]],dtype=np.float32)
 
         # initialize certain constant parameters
         self.J = np.zeros((template.shape[1],template.shape[0],2,6)) 
@@ -55,7 +55,7 @@ class LucasKanade:
         st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
             # warp image with current parameter estimate
-            W = np.array([[1,0,0],[0,1,0]]) + p.reshape(3,2).T
+            W = p
             I = cv2.warpAffine(frame.T, W, frame.shape)
 
             # compute error image
@@ -80,7 +80,7 @@ class LucasKanade:
             dP = np.linalg.inv(H)@O.T
 
             # update parameter estimates
-            p += dP.T
+            p += dP.reshape(3,2).T
 
             count += 1
             if count%500==0:

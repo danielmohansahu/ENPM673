@@ -11,6 +11,24 @@ TEMPLATE_BBOX=[160,83,56,65]
 FILEPATH="../data/DragonBaby/img/"
 VIDEOFILE="DragonBaby.mp4"
 
+def draw_rectangle(frame, bb, affine):
+    """Perform the given affine transformation on the bounding box and draw it on the frame.
+    """
+    # turn bounding box into points
+    pts = np.array([
+        [bb[0],bb[1]],
+        [bb[0]+bb[2],bb[1]],
+        [bb[0]+bb[2],bb[1]+bb[3]],
+        [bb[0],bb[1]+bb[3]]],
+        dtype=np.float32)
+    
+    # apply affine transform
+    rot_pts = cv2.warpAffine(pts, affine, (pts.shape[1],pts.shape[0]))
+    
+    # draw rectangle
+    result = cv2.polylines(frame, np.int32([rot_pts]), True, (0,0,255))
+    return result
+
 if __name__ == "__main__":
     # get all image files (in order)
     images = glob.glob(FILEPATH+"*.jpg")
@@ -22,15 +40,27 @@ if __name__ == "__main__":
 
     # generate video reader / writer objects
     output_file = "processed_" + os.path.basename(VIDEOFILE)
-    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), 30, (640,360), isColor=True)
+    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), 5, (640,360), isColor=False)
 
     # step through each frame and process
+    p = np.array([[1,0,0],[0,1,0]],dtype=np.float32)
     with video_writer as writer:
+        # draw first image
+        frame = cv2.imread(images[0],0)
+        images.pop(0)
+        result = draw_rectangle(frame, TEMPLATE_BBOX, p)
+
+        writer.write(result)
+
         for image in images:
             print("Processing frame: {}".format(image))
             frame = cv2.imread(image,0)
 
+            # estimate tracked transform
             p = lk.estimate(frame)
             print(p)
 
-            # writer.write(frame)
+            # draw rectangle
+            result = draw_rectangle(frame, TEMPLATE_BBOX, p)
+
+            writer.write(frame)
