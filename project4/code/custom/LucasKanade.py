@@ -68,12 +68,14 @@ class LucasKanade:
                 cv2.warpAffine(grad[1], W, frame.shape)
             ])
 
-            # calculate matrices used to solve for dP
+            # calculate steepest descent matrix
             D1 = I_grad[0].reshape(640,360,1)*self.J[:,:,0,:]
             D2 = I_grad[1].reshape(640,360,1)*self.J[:,:,1,:]
             D = D1+D2
+
+            # calculate Hessian and remaining terms needed to solve for dP
+            H = np.tensordot(D,D,axes=((0,1),(0,1)))
             O = (D*E.reshape(640,360,1)).sum((0,1))
-            H = sum([sum([np.outer(d,d) for d in d1]) for d1 in D])
 
             # calculate parameter delta
             dP = np.linalg.inv(H)@O.T
