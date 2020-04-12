@@ -43,7 +43,6 @@ class LucasKanade:
         # start with our previous parameter estimate
         p = self.p
         dP = self.p + np.inf
-        count = 0
 
         # precompute anything we can
         grad = np.array([
@@ -52,9 +51,9 @@ class LucasKanade:
         ])
 
         # begin iteration until gradient descent converges
+        count = 0
+        st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
-            st = time.time()
-
             # warp image with current parameter estimate
             W = np.array([[1,0,0],[0,1,0]]) + p.reshape(3,2).T
             I = cv2.warpAffine(frame.T, W, frame.shape)
@@ -84,7 +83,8 @@ class LucasKanade:
             p += dP.T
 
             count += 1
-            print("Iteration {} took {}: dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
+            if count%500==0:
+                print("On iteration {} ({:.3f} so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
 
         # we've converged: update internal variables
         self.p = p
