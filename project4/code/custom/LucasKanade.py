@@ -1,6 +1,6 @@
 """Python implementation of the Lucas-Kanade algorithm for template tracking via Affine Transformation.
 """
-
+import time
 import numpy as np
 import cv2
 
@@ -53,6 +53,7 @@ class LucasKanade:
 
         # begin iteration until gradient descent converges
         while np.linalg.norm(dP) > self.epsilon:
+            st = time.time()
 
             # warp image with current parameter estimate
             W = np.array([[1,0,0],[0,1,0]]) + p.reshape(3,2).T
@@ -67,18 +68,12 @@ class LucasKanade:
                 cv2.warpAffine(grad[1], W, frame.shape)
             ])
 
-            # evaluate steepest descent (per-pixel)
-            O = np.zeros((1,6)) 
-            H = np.zeros((6,6))
-            for x in range(I.shape[0]):
-                for y in range(I.shape[1]):
-
-                    # steepest descent:
-                    D = I_grad[:,x,y]@self.J[x,y]
-
-                    # accumulate Hessian and other term
-                    H += np.outer(D,D)
-                    O += D.T*E[x,y]
+            # calculate matrices used to solve for dP
+            D1 = I_grad[0].reshape(640,360,1)*self.J[:,:,0,:]
+            D2 = I_grad[1].reshape(640,360,1)*self.J[:,:,1,:]
+            D = D1+D2
+            O = (D*E.reshape(640,360,1)).sum((0,1))
+            H = sum([sum([np.outer(d,d) for d in d1]) for d1 in D])
 
             # calculate parameter delta
             dP = np.linalg.inv(H)@O.T
@@ -87,7 +82,7 @@ class LucasKanade:
             p += dP.T
 
             count += 1
-            print("Iteration {}: dP norm: {:.3f}".format(count,np.linalg.norm(dP)))
+            print("Iteration {} took {}: dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
 
         # we've converged: update internal variables
         self.p = p
