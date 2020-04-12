@@ -21,8 +21,16 @@ class LucasKanade:
         # initialize our parameter estimate (to zero)
         self.p = np.zeros((1,6),dtype=np.float32)
 
+        # initialize certain constant parameters
+        self.J = np.zeros((template.shape[1],template.shape[0],2,6)) 
+        for x in range(template.shape[1]):
+            for y in range(template.shape[0]):
+                self.J[x,y] = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
+
         # other variables
         self.epsilon = 0.1
+        self.k_y = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
+        self.k_x = np.array([[1,0,-1],[1,0,-1],[1,0,-1]])
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -37,6 +45,12 @@ class LucasKanade:
         dP = self.p + np.inf
         count = 0
 
+        # precompute anything we can
+        grad = np.array([
+            cv2.filter2D(frame, cv2.CV_8U, self.k_x),
+            cv2.filter2D(frame, cv2.CV_8U, self.k_y)
+        ])
+
         # begin iteration until gradient descent converges
         while np.linalg.norm(dP) > self.epsilon:
 
@@ -47,12 +61,10 @@ class LucasKanade:
             # compute error image
             E = self.template.T-I
 
-            # compute gradient and warp
-            k_y = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
-            k_x = np.array([[1,0,-1],[1,0,-1],[1,0,-1]])
+            # warp currentgradient estimate
             I_grad = np.array([
-                cv2.warpAffine(cv2.filter2D(frame,cv2.CV_8U,k_x), W, frame.shape),
-                cv2.warpAffine(cv2.filter2D(frame,cv2.CV_8U,k_y), W, frame.shape)
+                cv2.warpAffine(grad[0], W, frame.shape),
+                cv2.warpAffine(grad[1], W, frame.shape)
             ])
 
             # evaluate steepest descent (per-pixel)
@@ -61,11 +73,8 @@ class LucasKanade:
             for x in range(I.shape[0]):
                 for y in range(I.shape[1]):
 
-                    # Jacobian:
-                    J = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
-
                     # steepest descent:
-                    D = I_grad[:,x,y]@J
+                    D = I_grad[:,x,y]@self.J[x,y]
 
                     # accumulate Hessian and other term
                     H += np.outer(D,D)
