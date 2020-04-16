@@ -16,19 +16,21 @@ def draw_rectangle(frame, bb, affine):
     """
     # turn bounding box into points
     pts = np.array([
-        [bb[0],bb[1]],
-        [bb[0]+bb[2],bb[1]],
-        [bb[0]+bb[2],bb[1]+bb[3]],
-        [bb[0],bb[1]+bb[3]]],
+        [bb[1],bb[0]],
+        [bb[1]+bb[3],bb[0]],
+        [bb[1]+bb[3],bb[0]+bb[2]],
+        [bb[1],bb[0]+bb[2]]],
         dtype=np.float32)
 
     # apply affine transform
     M = np.vstack((affine + np.array([[1,0,0],[0,1,0]]), np.array([0,0,1]))) 
     M = np.linalg.inv(M)
     rot_pts = cv2.perspectiveTransform(pts[None,:,:], M)
-    
+
     # draw rectangle
-    result = cv2.polylines(frame, np.int32([rot_pts]), True, (0,0,255))
+    result = cv2.polylines(frame.T, np.int32([rot_pts]), True, (0,0,255))
+    result = cv2.transpose(result)
+
     return result
 
 if __name__ == "__main__":
@@ -62,7 +64,11 @@ if __name__ == "__main__":
             p = lk.estimate(frame)
             print(p)
 
-            # draw rectangle
-            result = draw_rectangle(frame, TEMPLATE_BBOX, p)
+            if p is not None:
+                # draw rectangle
+                result = draw_rectangle(frame, TEMPLATE_BBOX, p)
+            else:
+                result = frame.copy()
+                continue
 
-            writer.write(frame)
+            writer.write(result)
