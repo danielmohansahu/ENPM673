@@ -21,9 +21,11 @@ def draw_rectangle(frame, bb, affine):
         [bb[0]+bb[2],bb[1]+bb[3]],
         [bb[0],bb[1]+bb[3]]],
         dtype=np.float32)
-    
+
     # apply affine transform
-    rot_pts = cv2.warpAffine(pts, affine, (pts.shape[1],pts.shape[0]))
+    M = np.vstack((affine + np.array([[1,0,0],[0,1,0]]), np.array([0,0,1]))) 
+    M = np.linalg.inv(M)
+    rot_pts = cv2.perspectiveTransform(pts[None,:,:], M)
     
     # draw rectangle
     result = cv2.polylines(frame, np.int32([rot_pts]), True, (0,0,255))
@@ -43,7 +45,7 @@ if __name__ == "__main__":
     video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), 5, (640,360), isColor=False)
 
     # step through each frame and process
-    p = np.array([[1,0,0],[0,1,0]],dtype=np.float32)
+    p = np.zeros((2,3),dtype=np.float32)
     with video_writer as writer:
         # draw first image
         frame = cv2.imread(images[0],0)
