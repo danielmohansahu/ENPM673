@@ -2,11 +2,13 @@
 """
 import time
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy import ndimage
 import cv2
 
 class LucasKanade:
 
-    def __init__(self, template, bb):
+    def __init__(self, template, bounding_box):
         """Initialize the Lucas-Kanade algorithm.
 
         Args:
@@ -15,22 +17,29 @@ class LucasKanade:
         """
 
         # remove everything from the template image except the bounding box
-        self.template = np.zeros(template.shape)
-        self.template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]] = template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]]
+        self.template = np.float32(template)
+        self.shape = (template.shape[1],template.shape[0])
+
+        # compute homography from template image to ROI
+        bb = bounding_box
+        tpts = np.array([[bb[0],bb[1]],[bb[0]+bb[2],bb[1]],[bb[0]+bb[2],bb[1]+bb[3]],[bb[0],bb[1]+bb[3]]])
+        ipts = np.array([[0,0],[640,0],[640,360],[0,360]])
+        self.H = cv2.findHomography(tpts,ipts)[0]
+
+        # get our template
+        self.template = cv2.warpPerspective(template, self.H, dsize=self.shape)
 
         # initialize our parameter estimate (to zero)
-        self.p = np.array([[1,0,0],[0,1,0]],dtype=np.float32)
+        self.p = np.zeros((2,3),dtype=np.float32)
 
         # initialize certain constant parameters
-        self.J = np.zeros((template.shape[1],template.shape[0],2,6)) 
-        for x in range(template.shape[1]):
-            for y in range(template.shape[0]):
-                self.J[x,y] = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
+        self.J = np.zeros((self.shape[1],self.shape[0],2,6))
+        for x in range(self.shape[0]):
+            for y in range(self.shape[1]):
+                self.J[y,x] = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
 
         # other variables
         self.epsilon = 0.1
-        self.k_y = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
-        self.k_x = np.array([[1,0,-1],[1,0,-1],[1,0,-1]])
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -45,46 +54,48 @@ class LucasKanade:
         dP = self.p + np.inf
 
         # precompute anything we can
-        grad = np.array([
-            cv2.filter2D(frame, cv2.CV_8U, self.k_x),
-            cv2.filter2D(frame, cv2.CV_8U, self.k_y)
-        ])
+        grad = np.gradient(frame)
 
         # begin iteration until gradient descent converges
         count = 0
         st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
             # warp image with current parameter estimate
-            W = p
-            I = cv2.warpAffine(frame.T, W, frame.shape)
+            # W = np.linalg.inv(np.vstack((p,np.array([0,0,1]))))
+            W = np.array([[1,0,0],[0,1,0]]) + p
+            I = cv2.warpPerspective(ndimage.affine_transform(frame, W),self.H,self.shape)
 
             # compute error image
-            E = self.template.T-I
+            E = np.abs(self.template - I)
 
-            # warp currentgradient estimate
+            # warp current gradient estimate
             I_grad = np.array([
-                cv2.warpAffine(grad[0], W, frame.shape),
-                cv2.warpAffine(grad[1], W, frame.shape)
+                cv2.warpPerspective(ndimage.affine_transform(grad[0], W), self.H, self.shape),
+                cv2.warpPerspective(ndimage.affine_transform(grad[1], W), self.H, self.shape)
             ])
 
             # calculate steepest descent matrix
-            D1 = I_grad[0].reshape(640,360,1)*self.J[:,:,0,:]
-            D2 = I_grad[1].reshape(640,360,1)*self.J[:,:,1,:]
+            D1 = I_grad[0].reshape(360,640,1)*self.J[:,:,0,:]
+            D2 = I_grad[1].reshape(360,640,1)*self.J[:,:,1,:]
             D = D1+D2
 
             # calculate Hessian and remaining terms needed to solve for dP
             H = np.tensordot(D,D,axes=((0,1),(0,1)))
-            O = (D*E.reshape(640,360,1)).sum((0,1))
+            O = (D*E.reshape(360,640,1)).sum((0,1))
 
             # calculate parameter delta
-            dP = np.linalg.inv(H)@O.T
+            dP = np.linalg.inv(H)@O
 
             # update parameter estimates
             p += dP.reshape(3,2).T
 
+            if count == 100:
+                pass
+                # import pdb;pdb.set_trace()
+
             count += 1
-            if count%500==0:
-                print("On iteration {} ({:.3f} so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
+            if count%25==0:
+                print("On iteration {} ({:.3f} seconds so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
 
         # we've converged: update internal variables
         self.p = p
