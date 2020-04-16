@@ -10,3 +10,6 @@
 # ignore vim .swp
 *.*.swp
 *.*.swo
+
+# other stuff
+paper_source/
