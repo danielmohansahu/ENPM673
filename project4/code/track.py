@@ -7,9 +7,17 @@ import numpy as np
 from custom.LucasKanade import LucasKanade
 from custom import file_utils
 
-TEMPLATE_BBOX=[160,83,56,65]
-FILEPATH="../data/DragonBaby/img/"
-VIDEOFILE="DragonBaby.mp4"
+# TEMPLATE_BBOX=[269,75,34,64]
+# FILEPATH="../data/Bolt2/img/"
+# VIDEOFILE="Bolt2.mp4"
+
+TEMPLATE_BBOX=[70,51,107,87]
+FILEPATH="../data/Car4/img/"
+VIDEOFILE="Car4.mp4"
+
+# TEMPLATE_BBOX=[160,83,56,65]
+# FILEPATH="../data/DragonBaby/img/"
+# VIDEOFILE="DragonBaby.mp4"
 
 def draw_rectangle(frame, bb, affine):
     """Perform the given affine transformation on the bounding box and draw it on the frame.
@@ -44,7 +52,7 @@ if __name__ == "__main__":
 
     # generate video reader / writer objects
     output_file = "processed_" + os.path.basename(VIDEOFILE)
-    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), 5, (640,360), isColor=False)
+    video_writer = file_utils.VidWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), 5, (template.shape[1],template.shape[0]), isColor=False)
 
     # step through each frame and process
     p = np.zeros((2,3),dtype=np.float32)
@@ -68,6 +76,7 @@ if __name__ == "__main__":
                 # draw rectangle
                 result = draw_rectangle(frame, TEMPLATE_BBOX, p)
             else:
+                # just draw an empty image
                 result = frame.copy()
                 continue
 

@@ -22,11 +22,14 @@ class LucasKanade:
         # compute homography from template image to ROI
         bb = bounding_box
         tpts = np.array([[bb[1],bb[0]],[bb[1]+bb[3],bb[0]],[bb[1]+bb[3],bb[0]+bb[2]],[bb[1],bb[0]+bb[2]]])
-        ipts = np.array([[0,0],[360,0],[360,640],[0,640]])
+        ipts = np.array([[0,0],[self.shape[0],0],[self.shape[0],self.shape[1]],[0,self.shape[1]]])
+
+        # get homography; note that this is itself just an affine transform
         self.H = cv2.findHomography(tpts,ipts)[0]
 
         # get our template
         self.template = cv2.warpPerspective(template.T, self.H, dsize=template.shape)
+        self.template = np.float32(self.template)
 
         # initialize our parameter estimate (to zero)
         self.p = np.zeros((2,3),dtype=np.float32)
@@ -39,7 +42,7 @@ class LucasKanade:
 
         # other variables
         self.epsilon = 0.01
-        self.max_count = 1000
+        self.max_count = 100
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -55,7 +58,7 @@ class LucasKanade:
         dP = self.p + np.inf
 
         # precompute anything we can
-        grad = np.gradient(frame.T)
+        frame_gradient = np.gradient(frame.T)
 
         # begin iteration until gradient descent converges
         count = 0
@@ -66,8 +69,13 @@ class LucasKanade:
             W = np.array([[1,0,0],[0,1,0]]) + p
             I = cv2.warpPerspective(ndimage.affine_transform(frame.T, W),self.H,self.shape)
 
+            # scale to match template frame brightness
+            scale = self.template.mean()/I.mean()
+            I = np.float32(I)*scale
+            grad = np.float32(frame_gradient)*scale
+
             # compute error image
-            E = np.float32(self.template) - np.float32(I)
+            E = self.template - I
 
             # warp current gradient estimate
             I_grad = np.array([
@@ -76,13 +84,13 @@ class LucasKanade:
             ])
 
             # calculate steepest descent matrix
-            D1 = I_grad[0].reshape(640,360,1)*self.J[:,:,0,:]
-            D2 = I_grad[1].reshape(640,360,1)*self.J[:,:,1,:]
+            D1 = I_grad[0].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,0,:]
+            D2 = I_grad[1].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,1,:]
             D = D1+D2
 
             # calculate Hessian and remaining terms needed to solve for dP
             H = np.tensordot(D,D,axes=((0,1),(0,1)))
-            O = (D*E.reshape(640,360,1)).sum((0,1))
+            O = (D*E.reshape(self.shape[1],self.shape[0],1)).sum((0,1))
 
             # calculate parameter delta
             try:
@@ -99,8 +107,9 @@ class LucasKanade:
                 print("On iteration {} ({:.3f} seconds so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
 
             if count >= self.max_count:
-                print("Failed to converge.")
-                return None
+                print("Failed to converge; returning transform but not saving for next round.")
+                return p
+
 
         # we've converged: update internal variables
         self.p = p
