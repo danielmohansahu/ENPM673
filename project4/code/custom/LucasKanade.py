@@ -8,9 +8,6 @@ import cv2
 
 # Notes/Improvements:
 #  - implement the Huber Loss M-estimator mentioned in the problem statement.
-#  - investigate why cv2.warpAffine is different from scipy.ndimage.affine_transform
-#     the cv2 version is ~15 times faster, which would result in an order of magnitude
-#     speed improvement for this code.
 #  - implement max frame to frame transforms (rotation and translation) to prevent 
 #     a single bad track from throwing off the entire sequence
 #  - investigate switching entirely to either cv2 or np; this column vs. row order
@@ -52,7 +49,7 @@ class LucasKanade:
 
         # other variables
         self.epsilon = 0.01
-        self.max_count = 500  # 100 for car
+        self.max_count = 1000  # 100 for car
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -73,10 +70,15 @@ class LucasKanade:
         count = 0
         st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
+
+            # get representation of affine transform
+            #  note: this is messy because of row vs. column order issues with numpy vs. cv2
+            W_temp = np.array([[1,0,0],[0,1,0]]) + p
+            W = W_temp[[1,1,1,0,0,0],[1,0,2,1,0,2]].reshape(2,3)
+            W = cv2.invertAffineTransform(W)
+
             # warp image with current parameter estimate
-            # W = np.linalg.inv(np.vstack((p,np.array([0,0,1]))))
-            W = np.array([[1,0,0],[0,1,0]]) + p
-            I = cv2.warpPerspective(ndimage.affine_transform(frame.T, W),self.H,self.shape)
+            I = cv2.warpPerspective(cv2.warpAffine(frame.T,W,frame.shape),self.H,self.shape)
 
             # convert various entities to floating point
             I = np.float32(I)
@@ -93,10 +95,9 @@ class LucasKanade:
             # compute error image
             E = self.template - I
 
-            # warp current gradient estimate
             I_grad = np.array([
-                cv2.warpPerspective(ndimage.affine_transform(grad[0], W), self.H, self.shape),
-                cv2.warpPerspective(ndimage.affine_transform(grad[1], W), self.H, self.shape)
+                cv2.warpPerspective(cv2.warpAffine(grad[0],W,frame.shape),self.H,self.shape),
+                cv2.warpPerspective(cv2.warpAffine(grad[1],W,frame.shape),self.H,self.shape)
             ])
 
             # calculate steepest descent matrix
@@ -129,7 +130,6 @@ class LucasKanade:
             if count >= self.max_count:
                 print("Failed to converge; returning transform but not saving for next round.")
                 return p
-
 
         # we've converged: update current location estimate
         self.p = p

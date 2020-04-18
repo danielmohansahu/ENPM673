@@ -8,17 +8,17 @@ from scipy import ndimage
 from custom.LucasKanade import LucasKanade
 from custom import file_utils
 
-# TEMPLATE_BBOX=[269,75,34,64]
-# FILEPATH="../data/Bolt2/img/"
-# VIDEOFILE="Bolt2.mp4"
+TEMPLATE_BBOX=[269,75,34,64]
+FILEPATH="../data/Bolt2/img/"
+VIDEOFILE="Bolt2.mp4"
 
 # TEMPLATE_BBOX=[70,51,107,87]
 # FILEPATH="../data/Car4/img/"
 # VIDEOFILE="Car4.mp4"
 
-TEMPLATE_BBOX=[160,83,56,65]
-FILEPATH="../data/DragonBaby/img/"
-VIDEOFILE="DragonBaby.mp4"
+# TEMPLATE_BBOX=[160,83,56,65]
+# FILEPATH="../data/DragonBaby/img/"
+# VIDEOFILE="DragonBaby.mp4"
 
 def draw_rectangle(frame, bb, affine):
     """Perform the given affine transformation on the bounding box and draw it on the frame.
@@ -86,6 +86,5 @@ if __name__ == "__main__":
             else:
                 # just draw an empty image
                 result = frame.copy()
-                continue
 
             writer.write(result)
