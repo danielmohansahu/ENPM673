@@ -39,7 +39,11 @@ def draw_rectangle(frame, bb, affine):
     for pt in pts:
         rot = np.dot(M,pt)[:2]
         rot_pts.append(rot)
-
+    ctr = np.array(rot_pts, dtype = np.float32)
+    width = bb[2]
+    height = bb[3]
+    x,y,w,h = cv2.boundingRect(ctr)
+    result = cv2.rectangle(frame,(x,y),(x+width,y+height),(0,255,0),2)
     # draw rectangle
     result = cv2.polylines(frame, np.array([rot_pts],np.int32), True, (0,0,255))
 
