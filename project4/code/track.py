@@ -33,10 +33,8 @@ def draw_rectangle(frame, bb, affine):
 
     # generate our transformation matrix (inverted, template->image)
     M = np.vstack((affine + np.array([[1,0,0],[0,1,0]]), np.array([0,0,1]))) 
-    Minv = np.linalg.inv(M)
 
     # apply affine transform
-    Minv = np.linalg.inv(M)
     rot_pts = []
     for pt in pts:
         rot = np.dot(M,pt)[:2]
@@ -44,8 +42,6 @@ def draw_rectangle(frame, bb, affine):
 
     # draw rectangle
     result = cv2.polylines(frame, np.array([rot_pts],np.int32), True, (0,0,255))
-    result = cv2.transpose(result)
-    result = frame
 
     return result
 

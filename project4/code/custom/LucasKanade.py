@@ -24,18 +24,18 @@ class LucasKanade:
         """
 
         # remove everything from the template image except the bounding box
-        self.shape = template.shape
+        self.shape = tuple(template.shape[1::-1])
 
         # compute homography from template image to ROI
         bb = bounding_box
-        tpts = np.array([[bb[1],bb[0]],[bb[1]+bb[3],bb[0]],[bb[1]+bb[3],bb[0]+bb[2]],[bb[1],bb[0]+bb[2]]])
+        tpts = np.array([[bb[0],bb[1]],[bb[0]+bb[2],bb[1]],[bb[0]+bb[2],bb[1]+bb[3]],[bb[0],bb[1]+bb[3]]])
         ipts = np.array([[0,0],[self.shape[0],0],[self.shape[0],self.shape[1]],[0,self.shape[1]]])
 
         # get homography; note that this is itself just an affine transform
         self.H = cv2.findHomography(tpts,ipts)[0]
 
         # get our template
-        self.template = cv2.warpPerspective(template.T, self.H, dsize=template.shape)
+        self.template = cv2.warpPerspective(template, self.H, dsize=self.shape)
         self.template = np.float32(self.template)
 
         # initialize our parameter estimate (to zero)
@@ -43,12 +43,15 @@ class LucasKanade:
 
         # initialize certain constant parameters
         self.J = np.zeros((self.shape[1],self.shape[0],2,6))
-        for x in range(self.shape[1]):
-            for y in range(self.shape[0]):
-                self.J[x,y] = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
+        for x in range(self.shape[0]):
+            for y in range(self.shape[1]):
+                self.J[y,x] = np.array([
+                    [x,0,y,0,1,0],
+                    [0,x,0,y,0,1]
+                ])
 
         # other variables
-        self.epsilon = 0.01
+        self.epsilon = 0.02
         self.max_count = 1000  # 100 for car
 
     def estimate(self, frame):
@@ -64,7 +67,10 @@ class LucasKanade:
         dP = self.p + np.inf
 
         # precompute anything we can
-        frame_gradient = np.gradient(frame.T)
+        frame_gradient = [
+            cv2.Sobel(frame,cv2.CV_16S,1,0,ksize=3),
+            cv2.Sobel(frame,cv2.CV_16S,0,1,ksize=3)
+        ]
 
         # begin iteration until gradient descent converges
         count = 0
@@ -72,13 +78,11 @@ class LucasKanade:
         while np.linalg.norm(dP) > self.epsilon:
 
             # get representation of affine transform
-            #  note: this is messy because of row vs. column order issues with numpy vs. cv2
-            W_temp = np.array([[1,0,0],[0,1,0]]) + p
-            W = W_temp[[1,1,1,0,0,0],[1,0,2,1,0,2]].reshape(2,3)
+            W = np.array([[1,0,0],[0,1,0]]) + p
             W = cv2.invertAffineTransform(W)
 
             # warp image with current parameter estimate
-            I = cv2.warpPerspective(cv2.warpAffine(frame.T,W,frame.shape),self.H,self.shape)
+            I = cv2.warpPerspective(cv2.warpAffine(frame,W,self.shape),self.H,self.shape)
 
             # convert various entities to floating point
             I = np.float32(I)
@@ -96,8 +100,8 @@ class LucasKanade:
             E = self.template - I
 
             I_grad = np.array([
-                cv2.warpPerspective(cv2.warpAffine(grad[0],W,frame.shape),self.H,self.shape),
-                cv2.warpPerspective(cv2.warpAffine(grad[1],W,frame.shape),self.H,self.shape)
+                cv2.warpPerspective(cv2.warpAffine(grad[0],W,self.shape),self.H,self.shape),
+                cv2.warpPerspective(cv2.warpAffine(grad[1],W,self.shape),self.H,self.shape)
             ])
 
             # calculate steepest descent matrix
@@ -130,7 +134,7 @@ class LucasKanade:
             if count >= self.max_count:
                 print("Failed to converge; returning transform but not saving for next round.")
                 return p
-
+        
         # we've converged: update current location estimate
         self.p = p
         return p
