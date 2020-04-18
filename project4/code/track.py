@@ -4,6 +4,7 @@ import os
 import glob
 import cv2
 import numpy as np
+from scipy import ndimage
 from custom.LucasKanade import LucasKanade
 from custom import file_utils
 
@@ -11,33 +12,40 @@ from custom import file_utils
 # FILEPATH="../data/Bolt2/img/"
 # VIDEOFILE="Bolt2.mp4"
 
-TEMPLATE_BBOX=[70,51,107,87]
-FILEPATH="../data/Car4/img/"
-VIDEOFILE="Car4.mp4"
+# TEMPLATE_BBOX=[70,51,107,87]
+# FILEPATH="../data/Car4/img/"
+# VIDEOFILE="Car4.mp4"
 
-# TEMPLATE_BBOX=[160,83,56,65]
-# FILEPATH="../data/DragonBaby/img/"
-# VIDEOFILE="DragonBaby.mp4"
+TEMPLATE_BBOX=[160,83,56,65]
+FILEPATH="../data/DragonBaby/img/"
+VIDEOFILE="DragonBaby.mp4"
 
 def draw_rectangle(frame, bb, affine):
     """Perform the given affine transformation on the bounding box and draw it on the frame.
     """
     # turn bounding box into points
     pts = np.array([
-        [bb[1],bb[0]],
-        [bb[1]+bb[3],bb[0]],
-        [bb[1]+bb[3],bb[0]+bb[2]],
-        [bb[1],bb[0]+bb[2]]],
+        [bb[0],bb[1],1],
+        [bb[0]+bb[2],bb[1],1],
+        [bb[0]+bb[2],bb[1]+bb[3],1],
+        [bb[0],bb[1]+bb[3],1]],
         dtype=np.float32)
 
-    # apply affine transform
+    # generate our transformation matrix (inverted, template->image)
     M = np.vstack((affine + np.array([[1,0,0],[0,1,0]]), np.array([0,0,1]))) 
-    M = np.linalg.inv(M)
-    rot_pts = cv2.perspectiveTransform(pts[None,:,:], M)
+    Minv = np.linalg.inv(M)
+
+    # apply affine transform
+    Minv = np.linalg.inv(M)
+    rot_pts = []
+    for pt in pts:
+        rot = np.dot(M,pt)[:2]
+        rot_pts.append(rot)
 
     # draw rectangle
-    result = cv2.polylines(frame.T, np.int32([rot_pts]), True, (0,0,255))
+    result = cv2.polylines(frame, np.array([rot_pts],np.int32), True, (0,0,255))
     result = cv2.transpose(result)
+    result = frame
 
     return result
 
