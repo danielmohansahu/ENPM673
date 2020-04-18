@@ -6,6 +6,16 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 import cv2
 
+# Notes/Improvements:
+#  - implement the Huber Loss M-estimator mentioned in the problem statement.
+#  - investigate why cv2.warpAffine is different from scipy.ndimage.affine_transform
+#     the cv2 version is ~15 times faster, which would result in an order of magnitude
+#     speed improvement for this code.
+#  - implement max frame to frame transforms (rotation and translation) to prevent 
+#     a single bad track from throwing off the entire sequence
+#  - investigate switching entirely to either cv2 or np; this column vs. row order
+#     switching is a huge headache.
+
 class LucasKanade:
 
     def __init__(self, template, bounding_box):
@@ -42,7 +52,7 @@ class LucasKanade:
 
         # other variables
         self.epsilon = 0.01
-        self.max_count = 100
+        self.max_count = 500  # 100 for car
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -54,7 +64,6 @@ class LucasKanade:
         
         # start with our previous parameter estimate
         p = self.p
-        # p = np.zeros((2,3),dtype=np.float32)
         dP = self.p + np.inf
 
         # precompute anything we can
@@ -69,10 +78,17 @@ class LucasKanade:
             W = np.array([[1,0,0],[0,1,0]]) + p
             I = cv2.warpPerspective(ndimage.affine_transform(frame.T, W),self.H,self.shape)
 
+            # convert various entities to floating point
+            I = np.float32(I)
+            grad = np.float32(frame_gradient)
+
             # scale to match template frame brightness
-            scale = self.template.mean()/I.mean()
-            I = np.float32(I)*scale
-            grad = np.float32(frame_gradient)*scale
+            #  note: this fails if our previous estimate is bad.
+            #        we're probably already in a dead-end, but might as well try.
+            if I.mean() != 0:
+                scale = self.template.mean()/I.mean()
+                I *= scale
+                grad *= scale
 
             # compute error image
             E = self.template - I
@@ -102,16 +118,20 @@ class LucasKanade:
             # update parameter estimates
             p += dP.reshape(3,2).T
 
+            # update our counter and evaluate stop criterion
             count += 1
+
+            # periodically update on progress
             if count%25==0:
                 print("On iteration {} ({:.3f} seconds so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
 
+            # stop after max_count iterations
             if count >= self.max_count:
                 print("Failed to converge; returning transform but not saving for next round.")
                 return p
 
 
-        # we've converged: update internal variables
+        # we've converged: update current location estimate
         self.p = p
         return p
 
