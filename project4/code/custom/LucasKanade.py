@@ -51,8 +51,9 @@ class LucasKanade:
                 ])
 
         # other variables
-        self.epsilon = 0.02
-        self.max_count = 1000  # 100 for car
+        self.epsilon = 0.02     # stop criterion; min norm of affine delta to finish
+        self.max_count = 1000   # maximum allowed number of iterations
+        self.sigma = 0.5        # sigma for Huber Loss
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -68,8 +69,8 @@ class LucasKanade:
 
         # precompute anything we can
         frame_gradient = [
-            cv2.Sobel(frame,cv2.CV_16S,1,0,ksize=3),
-            cv2.Sobel(frame,cv2.CV_16S,0,1,ksize=3)
+            cv2.Sobel(np.float32(frame),cv2.CV_32F,1,0,ksize=3),
+            cv2.Sobel(np.float32(frame),cv2.CV_32F,0,1,ksize=3)
         ]
 
         # begin iteration until gradient descent converges
@@ -109,9 +110,13 @@ class LucasKanade:
             D2 = I_grad[1].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,1,:]
             D = D1+D2
 
+            # calculate huber loss matrix
+            H_w = 0.5*(E*E)
+            H_w[abs(E)>self.sigma] = (self.sigma*abs(E)-0.5*self.sigma)[abs(E)>self.sigma]
+
             # calculate Hessian and remaining terms needed to solve for dP
-            H = np.tensordot(D,D,axes=((0,1),(0,1)))
-            O = (D*E.reshape(self.shape[1],self.shape[0],1)).sum((0,1))
+            H = np.tensordot(D,H_w.reshape(self.shape[1],self.shape[0],1)*D,axes=((0,1),(0,1)))
+            O = (D*(H_w*E).reshape(self.shape[1],self.shape[0],1)).sum((0,1))
 
             # calculate parameter delta
             try:

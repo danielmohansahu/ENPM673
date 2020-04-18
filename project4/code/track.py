@@ -8,13 +8,13 @@ from scipy import ndimage
 from custom.LucasKanade import LucasKanade
 from custom import file_utils
 
-TEMPLATE_BBOX=[269,75,34,64]
-FILEPATH="../data/Bolt2/img/"
-VIDEOFILE="Bolt2.mp4"
+# TEMPLATE_BBOX=[269,75,34,64]
+# FILEPATH="../data/Bolt2/img/"
+# VIDEOFILE="Bolt2.mp4"
 
-# TEMPLATE_BBOX=[70,51,107,87]
-# FILEPATH="../data/Car4/img/"
-# VIDEOFILE="Car4.mp4"
+TEMPLATE_BBOX=[70,51,107,87]
+FILEPATH="../data/Car4/img/"
+VIDEOFILE="Car4.mp4"
 
 # TEMPLATE_BBOX=[160,83,56,65]
 # FILEPATH="../data/DragonBaby/img/"
@@ -74,7 +74,6 @@ if __name__ == "__main__":
 
             # estimate tracked transform
             p = lk.estimate(frame)
-            print(p)
 
             if p is not None:
                 # draw rectangle
