@@ -40,6 +40,7 @@ class LucasKanade:
 
         # initialize our parameter estimate (to zero)
         self.p = np.zeros((2,3),dtype=np.float32)
+        self.p_hist = [] 
 
         # initialize certain constant parameters
         self.J = np.zeros((self.shape[1],self.shape[0],2,6))
@@ -51,9 +52,28 @@ class LucasKanade:
                 ])
 
         # other variables
-        self.epsilon = 0.02     # stop criterion; min norm of affine delta to finish
+        self.epsilon = 0.01     # stop criterion; min norm of affine delta to finish
         self.max_count = 1000   # maximum allowed number of iterations
-        self.sigma = 0.5        # sigma for Huber Loss
+        self.sigma = 0.8        # sigma for Huber Loss
+        self.avg_frames = 3     # number of frames to use in moving average
+
+    def average(self, p, save=True):
+        """Return the moving average estimate of the current transform.
+        """
+        # update history of points
+        new_p_hist = self.p_hist + [p]
+        if len(new_p_hist) > self.avg_frames:
+            new_p_hist.pop(0)
+
+        # calculate average
+        avg = np.array(new_p_hist).sum(0)/len(new_p_hist)
+
+        # save (if commanded)
+        if save:
+            self.p = avg
+            self.p_hist = new_p_hist
+
+        return avg
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -95,7 +115,6 @@ class LucasKanade:
             if I.mean() != 0:
                 scale = self.template.mean()/I.mean()
                 I *= scale
-                grad *= scale
 
             # compute error image
             E = self.template - I
@@ -122,8 +141,7 @@ class LucasKanade:
             try:
                 dP = np.linalg.inv(H)@O
             except np.linalg.LinAlgError:
-                print("Failed to converge.")
-                return None
+                return False, None
 
             # update parameter estimates
             p += dP.reshape(3,2).T
@@ -131,18 +149,12 @@ class LucasKanade:
             # update our counter and evaluate stop criterion
             count += 1
 
-            # periodically update on progress
-            if count%25==0:
-                print("On iteration {} ({:.3f} seconds so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
-
             # stop after max_count iterations
             if count >= self.max_count:
-                print("Failed to converge; returning transform but not saving for next round.")
-                return p
+                return False, self.average(p, save=False)
         
         # we've converged: update current location estimate
-        self.p = p
-        return p
+        return True, self.average(p)
 
 
 
