@@ -31,9 +31,10 @@ def parse_args():
     parser.add_argument("-d", "--dataset", required=True, help="Dataset to run (choose from {}".format(DATASETS.keys()))
     parser.add_argument("-p", "--prefix", default="processed_", help="Prefix to prepend to output video name")
     parser.add_argument("-e", "--epsilon", type=float, default="0.01", help="Maximum norm of transform delta to determine convergence.")
-    parser.add_argument("-s", "--sigma", type=float, default=10, help="Huber Loss parameter.")
-    parser.add_argument("-m", "--max-count", type=int, default=400, help="Maximum number of iterations per frame.")
-    parser.add_argument("-a", "--avg-frames", type=int, default=5, help="Number of previous frames to average as template image.")
+    parser.add_argument("-s", "--sigma", type=float, default=0.8, help="Huber Loss parameter.")
+    parser.add_argument("-M", "--max-count", type=int, default=400, help="Maximum number of iterations per frame.")
+    parser.add_argument("-m", "--min-count", type=int, default=25, help="Minimum number of iterations per frame.")
+    parser.add_argument("-a", "--avg-frames", type=int, default=1, help="Number of previous frames to average as template image.")
     args = parser.parse_args()
     if args.dataset not in DATASETS.keys():
         raise RuntimeError("Invalid dataset. Got {}, expected {}".format(args.dataset, DATASETS.keys()))
@@ -87,6 +88,7 @@ if __name__ == "__main__":
                      epsilon=args.epsilon,
                      sigma=args.sigma,
                      max_count=args.max_count,
+                     min_count=args.min_count,
                      avg_frames=args.avg_frames)
 
     # generate video reader / writer objects

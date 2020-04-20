@@ -12,7 +12,7 @@ import cv2
 
 class LucasKanade:
 
-    def __init__(self, template, bounding_box, epsilon, sigma, max_count, avg_frames):
+    def __init__(self, template, bounding_box, epsilon, sigma, min_count, max_count, avg_frames):
         """Initialize the Lucas-Kanade algorithm.
 
         Args:
@@ -22,6 +22,7 @@ class LucasKanade:
         # configurable params
         self.epsilon = epsilon          # min norm of affine delta to finish
         self.max_count = max_count      # maximum allowed number of iterations
+        self.min_count = min_count      # minimum number of iterations
         self.sigma = sigma              # sigma for Huber Loss
         self.avg_frames = avg_frames    # number of frames to use in moving average
 
@@ -77,7 +78,7 @@ class LucasKanade:
         count = 0
         st = time.time()
         norm_hist = []
-        while np.linalg.norm(dP-dP_prev) > self.epsilon or count < 10:
+        while np.linalg.norm(dP-dP_prev) > self.epsilon or count < self.min_count:
             # get representation of affine transform
             W = np.array([[1,0,0],[0,1,0]]) + p
             W = cv2.invertAffineTransform(W)
