@@ -2,11 +2,20 @@
 """
 import time
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy import ndimage
 import cv2
 
-class LucasKanade:   # lk = LucasKanade(images[0],TEMPLATE_BBOX)
+# Notes/Improvements:
+#  - implement the Huber Loss M-estimator mentioned in the problem statement.
+#  - implement max frame to frame transforms (rotation and translation) to prevent 
+#     a single bad track from throwing off the entire sequence
+#  - investigate switching entirely to either cv2 or np; this column vs. row order
+#     switching is a huge headache.
 
-    def __init__(self, template, bb):
+class LucasKanade:
+
+    def __init__(self, template, bounding_box):
         """Initialize the Lucas-Kanade algorithm.
         Args:
             template:   Image containing the template to track.
@@ -14,26 +23,57 @@ class LucasKanade:   # lk = LucasKanade(images[0],TEMPLATE_BBOX)
         """
 
         # remove everything from the template image except the bounding box
-        self.template = np.zeros(template.shape)
+        self.shape = tuple(template.shape[1::-1])
+
+        # compute homography from template image to ROI
+        bb = bounding_box
+        tpts = np.array([[bb[0],bb[1]],[bb[0]+bb[2],bb[1]],[bb[0]+bb[2],bb[1]+bb[3]],[bb[0],bb[1]+bb[3]]])
+        ipts = np.array([[0,0],[self.shape[0],0],[self.shape[0],self.shape[1]],[0,self.shape[1]]])
+
+        # get homography; note that this is itself just an affine transform
+        self.H = cv2.findHomography(tpts,ipts)[0]
+
+        # get our template
+        self.template = cv2.warpPerspective(template, self.H, dsize=self.shape)
         
-        self.template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]] = template[bb[0]:bb[0]+bb[2],bb[1]:bb[1]+bb[3]]
+        self.template = np.float32(self.template)
 
         # initialize our parameter estimate (to zero)
-        self.p = np.array([[1,0,0],[0,1,0]],dtype=np.float32)
+        self.p = np.zeros((2,3),dtype=np.float32)
+        self.p_hist = [] 
 
-        # initialize certain constant parameters :dw/dp
-        self.J = np.zeros((template.shape[1],template.shape[0],2,6)) 
-        
-        for x in range(template.shape[1]):
-            for y in range(template.shape[0]):
-                # dW/dP
-                self.J[x,y] = np.array([[x,0,y,0,1,0],[0,x,0,y,0,1]])
-                
+        # initialize certain constant parameters
+        self.J = np.zeros((self.shape[1],self.shape[0],2,6))
+        for x in range(self.shape[0]):
+            for y in range(self.shape[1]):
+                self.J[y,x] = np.array([
+                    [x,0,y,0,1,0],
+                    [0,x,0,y,0,1]
+                ])
 
         # other variables
-        self.epsilon = 0.1
-        self.k_y = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
-        self.k_x = np.array([[1,0,-1],[1,0,-1],[1,0,-1]])
+        self.epsilon = 0.02     # stop criterion; min norm of affine delta to finish
+        self.max_count = 500   # maximum allowed number of iterations
+        self.sigma = 0.5        # sigma for Huber Loss
+        self.avg_frames = 1     # number of frames to use in moving average
+
+    def average(self, p, save=True):
+        """Return the moving average estimate of the current transform.
+        """
+        # update history of points
+        new_p_hist = self.p_hist + [p]
+        if len(new_p_hist) > self.avg_frames:
+            new_p_hist.pop(0)
+
+        # calculate average
+        avg = np.array(new_p_hist).sum(0)/len(new_p_hist)
+
+        # save (if commanded)
+        if save:
+            self.p = avg
+            self.p_hist = new_p_hist
+
+        return avg
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -44,71 +84,73 @@ class LucasKanade:   # lk = LucasKanade(images[0],TEMPLATE_BBOX)
         
         # start with our previous parameter estimate
         p = self.p
-        print("P initial",p)
         dP = self.p + np.inf
 
         # precompute anything we can
-        grad = np.array([
-            cv2.filter2D(frame, cv2.CV_8U, self.k_x),
-            cv2.filter2D(frame, cv2.CV_8U, self.k_y)
-        ])
+        frame_gradient = [
+            cv2.Sobel(np.float32(frame),cv2.CV_32F,1,0,ksize=3),
+            cv2.Sobel(np.float32(frame),cv2.CV_32F,0,1,ksize=3)
+        ]
 
         # begin iteration until gradient descent converges
         count = 0
         st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
-            # warp image with current parameter estimate
-            #W = p
-            p = p.reshape(6,1)
-            W = np.array([[1 + float(p[0]), float( p[2]), float(p[4])],[float(p[1]), 1 + float(p[3]), float(p[5])]])
-            print("W", W)
-            #print("value of p[0]", float(p[0]))
-            I = cv2.warpAffine(frame.T, W, frame.shape)
-           
-            # compute error image
-            E = frame.T-I
-            #print("E", np.shape(E))
-            #print("frame transpose",np.shape(frame.T))
 
-            # warp currentgradient estimate
+            # get representation of affine transform
+            W = np.array([[1,0,0],[0,1,0]]) + p
+            W = cv2.invertAffineTransform(W)
+
+            # warp image with current parameter estimate
+            I = cv2.warpPerspective(cv2.warpAffine(frame,W,self.shape),self.H,self.shape)
+
+            # convert various entities to floating point
+            I = np.float32(I)
+            grad = np.float32(frame_gradient)
+
+            # scale to match template frame brightness
+            #  note: this fails if our previous estimate is bad.
+            #        we're probably already in a dead-end, but might as well try.
+            if I.mean() != 0:
+                scale = self.template.mean()/I.mean()
+                I *= scale
+
+            # compute error image
+            E = self.template - I
+
             I_grad = np.array([
-                cv2.warpAffine(grad[0], W, frame.shape),
-                cv2.warpAffine(grad[1], W, frame.shape)
+                 cv2.warpPerspective(cv2.warpAffine(grad[0],W,self.shape),self.H,self.shape),
+                 cv2.warpPerspective(cv2.warpAffine(grad[1],W,self.shape),self.H,self.shape)
             ])
-            #print("size I_grad", np.shape(I_grad))
 
             # calculate steepest descent matrix
-            D1 = I_grad[0].reshape(640,360,1)*self.J[:,:,0,:]
-            #print("D1", D1)
-            D2 = I_grad[1].reshape(640,360,1)*self.J[:,:,1,:]
+            D1 = I_grad[0].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,0,:]
+            D2 = I_grad[1].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,1,:]
             D = D1+D2
-            #print("D", D)
+
+            # calculate huber loss matrix
+            H_w = 0.5*(E*E)
+            H_w[abs(E)>self.sigma] = (self.sigma*abs(E)-0.5*self.sigma)[abs(E)>self.sigma]
 
             # calculate Hessian and remaining terms needed to solve for dP
-            H = np.tensordot(D,D,axes=((0,1),(0,1)))
-            O = (D*E.reshape(640,360,1)).sum((0,1))
+            H = np.tensordot(D,H_w.reshape(self.shape[1],self.shape[0],1)*D,axes=((0,1),(0,1)))
+            O = (D*(H_w*E).reshape(self.shape[1],self.shape[0],1)).sum((0,1))
 
             # calculate parameter delta
-            dP = np.linalg.inv(H)@O.T
-            print("dP",dP)
-            
+            try:
+                dP = np.linalg.inv(H)@O
+            except np.linalg.LinAlgError:
+                return False, None
+
             # update parameter estimates
-            p = p.reshape(2,3)
             p += dP.reshape(3,2).T
-            print("p", p)
-            #print("reshaped p", p)
+
+            # update our counter and evaluate stop criterion
             count += 1
-            if count%500==0:
-                print("On iteration {} ({:.3f} so far): dP norm: {:.3f}".format(count, time.time()-st, np.linalg.norm(dP)))
-                '''print("D1", np.shape(D1))
-                print("I_grad", np.shape(I_grad))
-                print("H", np.shape(H))
-                print("O", np.shape(O))
-                print("lk p",p)
-               '''
-                
-        # we've converged: update internal variables
-        self.p = p
-        return p
 
-
+            # stop after max_count iterations
+            if count >= self.max_count:
+                return False, self.average(p, save=False)
+        
+        # we've converged: update current location estimate
+        return True, self.average(p)
