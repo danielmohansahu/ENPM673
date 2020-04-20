@@ -12,13 +12,18 @@ import cv2
 
 class LucasKanade:
 
-    def __init__(self, template, bounding_box):
+    def __init__(self, template, bounding_box, epsilon, sigma, max_count, avg_frames):
         """Initialize the Lucas-Kanade algorithm.
 
         Args:
             template:   Image containing the template to track.
             bbox:       Bounding box of the template.
         """
+        # configurable params
+        self.epsilon = epsilon          # min norm of affine delta to finish
+        self.max_count = max_count      # maximum allowed number of iterations
+        self.sigma = sigma              # sigma for Huber Loss
+        self.avg_frames = avg_frames    # number of frames to use in moving average
 
         # remove everything from the template image except the bounding box
         self.shape = tuple(template.shape[1::-1])
@@ -34,10 +39,10 @@ class LucasKanade:
         # get our template
         self.template = cv2.warpPerspective(template, self.H, dsize=self.shape)
         self.template = np.float32(self.template)
+        self.template_hist = [self.template]
 
         # initialize our parameter estimate (to zero)
         self.p = np.zeros((2,3),dtype=np.float32)
-        self.p_hist = [] 
 
         # initialize certain constant parameters
         self.J = np.zeros((self.shape[1],self.shape[0],2,6))
@@ -48,29 +53,6 @@ class LucasKanade:
                     [0,x,0,y,0,1]
                 ])
 
-        # other variables
-        self.epsilon = 0.01     # stop criterion; min norm of affine delta to finish
-        self.max_count = 1000   # maximum allowed number of iterations
-        self.sigma = 0.8        # sigma for Huber Loss
-        self.avg_frames = 5     # number of frames to use in moving average
-
-    def average(self, p, save=True):
-        """Return the moving average estimate of the current transform.
-        """
-        # update history of points
-        new_p_hist = self.p_hist + [p]
-        if len(new_p_hist) > self.avg_frames:
-            new_p_hist.pop(0)
-
-        # calculate average
-        avg = np.array(new_p_hist).sum(0)/len(new_p_hist)
-
-        # save (if commanded)
-        if save:
-            self.p = avg
-            self.p_hist = new_p_hist
-
-        return avg
 
     def estimate(self, frame):
         """Estimate the warp parameters that best fit the given frame.
@@ -82,7 +64,8 @@ class LucasKanade:
         
         # start with our previous parameter estimate
         p = self.p
-        dP = self.p + np.inf
+        dP = np.zeros(6)
+        dP_prev = dP + np.inf
 
         # precompute anything we can
         frame_gradient = [
@@ -93,7 +76,8 @@ class LucasKanade:
         # begin iteration until gradient descent converges
         count = 0
         st = time.time()
-        while np.linalg.norm(dP) > self.epsilon:
+        norm_hist = []
+        while np.linalg.norm(dP-dP_prev) > self.epsilon or count < 10:
             # get representation of affine transform
             W = np.array([[1,0,0],[0,1,0]]) + p
             W = cv2.invertAffineTransform(W)
@@ -135,6 +119,7 @@ class LucasKanade:
 
             # calculate parameter delta
             try:
+                dP_prev = dP
                 dP = np.linalg.inv(H)@O
             except np.linalg.LinAlgError:
                 return False, None
@@ -143,14 +128,21 @@ class LucasKanade:
             p += dP.reshape(3,2).T
 
             # update our counter and evaluate stop criterion
+            norm_hist.append(np.linalg.norm(dP - dP_prev))
             count += 1
+
+            if count%100 == 0:
+                # check if we need a bump
+                if np.std(norm_hist[-50:]) < 0.05:
+                    p += np.random.random(p.shape)/5 - 0.1
 
             # stop after max_count iterations
             if count >= self.max_count:
-                return False, self.average(p, save=False)
-        
+                return False, p
+
         # we've converged: update current location estimate
-        return True, self.average(p)
+        self.p = p
+        return True, p
 
 
 
