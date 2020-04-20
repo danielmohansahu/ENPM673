@@ -7,11 +7,8 @@ from scipy import ndimage
 import cv2
 
 # Notes/Improvements:
-#  - implement the Huber Loss M-estimator mentioned in the problem statement.
 #  - implement max frame to frame transforms (rotation and translation) to prevent 
 #     a single bad track from throwing off the entire sequence
-#  - investigate switching entirely to either cv2 or np; this column vs. row order
-#     switching is a huge headache.
 
 class LucasKanade:
 
@@ -55,7 +52,7 @@ class LucasKanade:
         self.epsilon = 0.01     # stop criterion; min norm of affine delta to finish
         self.max_count = 1000   # maximum allowed number of iterations
         self.sigma = 0.8        # sigma for Huber Loss
-        self.avg_frames = 3     # number of frames to use in moving average
+        self.avg_frames = 5     # number of frames to use in moving average
 
     def average(self, p, save=True):
         """Return the moving average estimate of the current transform.
@@ -97,13 +94,12 @@ class LucasKanade:
         count = 0
         st = time.time()
         while np.linalg.norm(dP) > self.epsilon:
-
             # get representation of affine transform
             W = np.array([[1,0,0],[0,1,0]]) + p
             W = cv2.invertAffineTransform(W)
 
             # warp image with current parameter estimate
-            I = cv2.warpPerspective(cv2.warpAffine(frame,W,self.shape),self.H,self.shape)
+            I = cv2.warpAffine(cv2.warpAffine(frame,W,self.shape),self.H[:2],self.shape)
 
             # convert various entities to floating point
             I = np.float32(I)
@@ -120,13 +116,13 @@ class LucasKanade:
             E = self.template - I
 
             I_grad = np.array([
-                cv2.warpPerspective(cv2.warpAffine(grad[0],W,self.shape),self.H,self.shape),
-                cv2.warpPerspective(cv2.warpAffine(grad[1],W,self.shape),self.H,self.shape)
+                cv2.warpAffine(cv2.warpAffine(grad[0],W,self.shape),self.H[:2],self.shape),
+                cv2.warpAffine(cv2.warpAffine(grad[1],W,self.shape),self.H[:2],self.shape)
             ])
 
             # calculate steepest descent matrix
-            D1 = I_grad[0].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,0,:]
-            D2 = I_grad[1].reshape(self.shape[1],self.shape[0],1)*self.J[:,:,1,:]
+            D1 = I_grad[0][..., np.newaxis]*self.J[:,:,0,:]
+            D2 = I_grad[1][..., np.newaxis]*self.J[:,:,1,:]
             D = D1+D2
 
             # calculate huber loss matrix
@@ -134,8 +130,8 @@ class LucasKanade:
             H_w[abs(E)>self.sigma] = (self.sigma*abs(E)-0.5*self.sigma)[abs(E)>self.sigma]
 
             # calculate Hessian and remaining terms needed to solve for dP
-            H = np.tensordot(D,H_w.reshape(self.shape[1],self.shape[0],1)*D,axes=((0,1),(0,1)))
-            O = (D*(H_w*E).reshape(self.shape[1],self.shape[0],1)).sum((0,1))
+            H = np.tensordot(D,H_w[...,np.newaxis]*D,axes=((0,1),(0,1)))
+            O = (D*(H_w*E)[..., np.newaxis]).sum((0,1))
 
             # calculate parameter delta
             try:
