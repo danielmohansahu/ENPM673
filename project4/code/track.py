@@ -64,11 +64,11 @@ def draw_rectangle(frame, bb, affine):
     ctr = np.array(rot_pts, dtype = np.float32)
     x,y,w,h = cv2.boundingRect(ctr)
     result = cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
-
+    bbox_new = [x,y,w,h]
     # draw affine rectangle (for reference)
     result = cv2.polylines(frame, np.array([rot_pts],np.int32), True, (0,0,255))
 
-    return result
+    return result, bbox_new
 
 if __name__ == "__main__":
     # parse args
@@ -101,13 +101,15 @@ if __name__ == "__main__":
         # draw first image
         frame = cv2.imread(images[0],0)
         images.pop(0)
-        result = draw_rectangle(frame, bbox, p)
+        result, bbox_new = draw_rectangle(frame, bbox, p)
         writer.write(result)
 
         # initialize metavariables
         count = 1
         failures = 0
         st = time.time()
+        frame_avg =  np.float32(template)
+        template_avg = np.zeros((270,480), dtype = float)
 
         for image in images:
             # update status bar
@@ -125,7 +127,7 @@ if __name__ == "__main__":
 
             if p is not None:
                 # draw rectangle
-                result = draw_rectangle(frame, bbox, p)
+                result, bbox_new = draw_rectangle(frame, bbox, p)
             else:
                 # just draw an empty image
                 result = frame.copy()
@@ -135,3 +137,21 @@ if __name__ == "__main__":
                 failures += 1
 
             writer.write(result)
+            if count%args.avg_frames != 0:
+                c = float(count%args.avg_frames)
+                frame_avg = np.float32(frame)
+                #print(type(frame_avg))
+                #print(type(template1))
+                template_avg += frame_avg
+                template = cv2.normalize(template_avg, dst=None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                #cv2.imshow("ave template", template)
+                #cv2.waitKey(0)
+                
+            elif count%args.avg_frames == 0:
+                lk = LucasKanade(template,
+                                 bounding_box=bbox_new,
+                                 epsilon=args.epsilon,
+                                 sigma=args.sigma,
+                                 max_count=args.max_count,
+                                 min_count=args.min_count,
+                                 avg_frames=args.avg_frames)
